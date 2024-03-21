@@ -149,6 +149,14 @@ class ScriptTaskManager:
         )
         return (await a.fetchone())[0]
 
+    async def fetch_device_task(self, device_id: str) -> ScriptTask:
+        # 选择一条创建的任务
+        a = await self.db.execute(
+            f"SELECT * FROM Task WHERE device_id='{device_id}' AND status_code={TaskStatus.PC_HAS_SEND} ORDER BY timing_execute DESC LIMIT 1;"
+        )
+        f = await a.fetchone()[0]
+        return ScriptTask.db_rows_to_task(f)
+
 
 ###################################
 

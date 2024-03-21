@@ -11,7 +11,7 @@ task_manager = ScriptTaskManager()
 @task.route("/create", methods=["POST"])
 async def _create_task():
     req_json = await request.get_json()
-    return json.jsonify(task_manager.create_task(
+    return json.jsonify(await task_manager.create_task(
         device_id=req_json["device_id"],
         project_id=req_json["project_id"],
         script_project_id=req_json["script_id"],
@@ -23,21 +23,32 @@ async def _create_task():
 @task.route("/delete", methods=["POST"])
 async def _delete_task():
     req_json = await request.get_json()
-    return json.jsonify(task_manager.delete_task(
+    return json.jsonify(await task_manager.delete_task(
         task_uuid=req_json["task_unique_id"]  # 可以为数组, 或者字符串均可
     ))
 
 
-# 脚本请求这个接口拿参数
+# 查询任务的具体参数, 这个暂时用不上
 @task.route("/task_params", methods=["GET"])
 async def _params_from_task():
-    await task_manager.get_task_params(request.args["task_unique_id"])
+    return await task_manager.get_task_params(request.args["task_unique_id"])
+
+
+# 手机的工程被运行, 向服务器拉取任务信息, 服务器会自动选择一条适合执行的任务
+@task.route("/fetch_task", methods=["GET"])
+async def _fetch_task():
+    try:
+        device_id = request.args.get("device_id")  # 在手机上脚本通过 shell("cat /data/local/tmp/.id") 进行读取
+        r = await task_manager.fetch_device_task(device_id)
+        return json.jsonify(r)
+    except Exception as e:
+        return f"获取错误: {repr(e)}"
 
 
 @task.route("/query", methods=["POST"])
 async def _query_task():
     req_json = await request.get_json()
-    return json.jsonify(task_manager.query_all_task(
+    return json.jsonify(await task_manager.query_all_task(
         per_page=req_json["per_page"],
         page_index=req_json["page_index"],
         task_status_code=req_json.get("task_status_code"),  # 如果提交了此参数则指定
