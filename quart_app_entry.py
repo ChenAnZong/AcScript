@@ -21,7 +21,7 @@ class ServerAPP:
         if cls.cfg.IS_DEBUG:
             loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict]
             print("启动程序#日志打印：", loggers)
-            cls.app.run(host="0.0.0.0", port=5031, debug=True)
+            cls.app.run(host="0.0.0.0", port=5031, debug=False)
         else:
             import asyncio
             from hypercorn.config import Config

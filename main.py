@@ -23,4 +23,12 @@ async def check_sign():
     pass
 
 
+@app.route("/")
+async def _index():
+    return json.jsonify({
+        "status": "成功",
+        "platform": sys.platform,
+        "pid": os.getpid()
+    })
+
 ServerAPP.start()

@@ -28,6 +28,12 @@ async def _delete_task():
     ))
 
 
+# 脚本请求这个接口拿参数
+@task.route("/task_params", methods=["GET"])
+async def _params_from_task():
+    await task_manager.get_task_params(request.args["task_unique_id"])
+
+
 @task.route("/query", methods=["POST"])
 async def _query_task():
     req_json = await request.get_json()
@@ -39,6 +45,7 @@ async def _query_task():
     ))
 
 
+# 脚本运行完毕后, 请求这个接口更新任务状态
 @task.route("/update_status", methods=["POST"])
 async def _update_status():
     req_json = await request.get_json()

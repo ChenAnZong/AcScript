@@ -1,14 +1,18 @@
 import os
 import time
 import asyncio
+import traceback
+
 from quart import request, Quart, Blueprint, json, send_file, redirect, abort, websocket, send_from_directory, \
     make_response, \
     render_template, stream_with_context, Response
 from data import ProjectManager
 from util import md5_file, ts
+from log import Logger
 
 project = Blueprint("project", import_name=__name__, url_prefix="/project")
 project_man = ProjectManager()
+loger = Logger.logger
 
 
 # 请求地址为 http://127.0.0.1:5037/project/
@@ -24,6 +28,7 @@ async def _create_project():
     新建脚本工程
     :return:
     """
+    print(request)
     req_json = await request.get_json()
     name = req_json["name"]  # 此名字后期不可更改
     author = req_json["author"]
@@ -44,7 +49,7 @@ async def _delete_project():
     return json.jsonify(ret)
 
 
-@project.route("/list", methods=["GET"])
+@project.route("/list", methods=["POST"])
 async def _list_project():
     """
     列出当前所有脚本工程
@@ -53,8 +58,12 @@ async def _list_project():
     req_json = await request.get_json()
     per_page = req_json["per_page"]
     page_index = req_json["page_index"]
-    ret = project_man.query_all_project(per_page, page_index)
-    return json.jsonify(ret)
+    try:
+        ret = await project_man.query_all_project(per_page, page_index)
+        return json.jsonify(ret)
+    except:
+        loger.error(traceback.format_exc())
+        return json.jsonify([])
 
 
 @project.route("/update", methods=["POST"])
@@ -82,7 +91,7 @@ async def _update_project():
         project_zip.save(local_file)
         md5 = md5_file(local_file)
         os.rename(project_zip, md5 + ".zip")
-    ret = await project_man.update_project(project_id, md5, md5 is None, update_version, git_url, update_note)
+    ret = await project_man.update_project(project_id, md5, md5 is not None, update_version, git_url, update_note)
     return json.jsonify(ret)
 
 

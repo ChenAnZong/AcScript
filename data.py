@@ -60,7 +60,7 @@ class ScriptTask:
 
 class ScriptTaskManager:
     def __init__(self):
-        asyncio.get_event_loop().run_until_complete(asyncio.gather(self.init()))
+        asyncio.get_event_loop().run_until_complete(self.init())
 
     async def init(self):
         self.db = await aiosqlite.connect(
@@ -86,15 +86,17 @@ class ScriptTaskManager:
                                       status_desc TEXT
                                       );'''
         try:
+            print("初始化新表")
             await self.db.execute(sqlite_create_table_query)
+            await self.db.commit()
         except aiosqlite.OperationalError as _:
             pass
 
     async def delete_task(self, task_uuid: Union[Tuple[str], str]) -> ActionRet:
         if isinstance(task_uuid, (list, tuple,)):
-            cur = await self.db.executemany(f"DELETE FROM Card WHERE code = ? ", [(c,) for c in task_uuid])
+            cur = await self.db.executemany(f"DELETE FROM Task WHERE code = ? ", [(c,) for c in task_uuid])
         else:
-            cur = await self.db.execute(f"DELETE FROM Card WHERE code='{task_uuid}'")
+            cur = await self.db.execute(f"DELETE FROM Task WHERE code='{task_uuid}'")
         await self.db.commit()
         return ActionRet(True, f"成功删除任务, 条数:{cur.rowcount}")
 
@@ -102,7 +104,7 @@ class ScriptTaskManager:
         try:
             unique_id = str(uuid.uuid4())
             await self.db.execute(
-                f"INSERT INTO Project (uuid, date_create, date_update, device_id, script_project_id, task_params_json, timing_execute, status_code, status_desc)  VALUES "
+                f"INSERT INTO Task (uuid, date_create, date_update, device_id, script_project_id, task_params_json, timing_execute, status_code, status_desc)  VALUES "
                 f"('{unique_id}', '{ts()}', '{ts()}', '{device_id}','{project_id}','{script_project_id}', '{timing_execute}', '{TaskStatus.CREATED.value}', '新建任务');"
             )
             return ActionRet(True, "新建任务成功")
@@ -203,10 +205,11 @@ class ProjectManager:
                                      update_count INTEGER,
                                      git_url TEXT,
                                      zip_md5 TEXT,
-                                     update_note_current TEXT,
+                                     update_note_current TEXT
                                      );'''
         try:
             await self.db.execute(sqlite_create_table_query)
+            await self.db.commit()
         except aiosqlite.OperationalError as _:
             pass
 
@@ -253,7 +256,7 @@ class ProjectManager:
             return ActionRet(False, f"删除项目错误: {repr(e)}")
 
     async def query_all_project(self, per_page:int= 10, page_index:int=1):
-        sql = f"SELECT * FROM Card ORDER BY date_update DESC LIMIT {int(per_page)} " \
+        sql = f"SELECT * FROM Project ORDER BY date_update DESC LIMIT {int(per_page)} " \
               f"OFFSET {(int(page_index) - 1) * (int(per_page))};"
         cur: Cursor = await self.db.execute(sql)
         alr = await cur.fetchall()
