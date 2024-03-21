@@ -82,6 +82,8 @@ class ScriptTaskManager:
                                       update_count INTEGER,
                                       task_params_json TEXT NOT NULL,
                                       timing_execute TEXT,
+                                      task_app TEXT,
+                                      task_name TEXT
                                       status_code TINYINT,
                                       status_desc TEXT
                                       );'''
@@ -100,12 +102,17 @@ class ScriptTaskManager:
         await self.db.commit()
         return ActionRet(True, f"成功删除任务, 条数:{cur.rowcount}")
 
-    async def create_task(self, device_id: str, project_id: str, script_project_id: int, param_json: str, timing_execute: str) -> ActionRet:
+    async def create_task(self, device_id: str, script_project_id: int,
+                          task_app: str, task_name: str,
+                          param_json: str, timing_execute: str) -> ActionRet:
         try:
             unique_id = str(uuid.uuid4())
             await self.db.execute(
-                f"INSERT INTO Task (uuid, date_create, date_update, device_id, script_project_id, task_params_json, timing_execute, status_code, status_desc)  VALUES "
-                f"('{unique_id}', '{ts()}', '{ts()}', '{device_id}','{project_id}','{script_project_id}', '{timing_execute}', '{TaskStatus.CREATED.value}', '新建任务');"
+                "INSERT INTO Task (uuid, date_create, date_update, device_id, script_project_id, "
+                "task_app, task_name, task_params_json, timing_execute, status_code, status_desc) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (unique_id, ts(), ts(), device_id, script_project_id,
+                 task_app, task_name, param_json, timing_execute, TaskStatus.CREATED.value, '新建任务')
             )
             return ActionRet(True, "新建任务成功")
         except aiosqlite.IntegrityError as e:

@@ -33,7 +33,7 @@ async def _create_project():
     name = req_json["name"]  # 此名字后期不可更改
     author = req_json["author"]
     git_url = req_json["git_url"]
-    ret = project_man.create_project(name, author, git_url)
+    ret = await project_man.create_project(name, author, git_url)
     return json.jsonify(ret)
 
 
@@ -45,7 +45,7 @@ async def _delete_project():
     """
     req_json = await request.get_json()
     name = req_json["project_id"]  # 此名字后期不可更改
-    ret = project_man.delete_project(name)
+    ret = await project_man.delete_project(name)
     return json.jsonify(ret)
 
 
@@ -104,6 +104,6 @@ async def _download_project():
     project_id = request.args.get("id")
     local = os.path.join("../project_zip", project_id + ".zip")
     if os.path.exists(local):
-        return send_file(local, as_attachment=True)
+        return await send_file(local, as_attachment=True)
     else:
         return Response(response="文件不存在", status=400)

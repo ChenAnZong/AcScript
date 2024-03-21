@@ -12,9 +12,11 @@ task_manager = ScriptTaskManager()
 async def _create_task():
     req_json = await request.get_json()
     return json.jsonify(await task_manager.create_task(
-        device_id=req_json["device_id"],
-        project_id=req_json["project_id"],
-        script_project_id=req_json["script_id"],
+        device_id=req_json["device_id"],           # 设备ID
+        project_id=req_json["script_project_id"],  # 脚本工程ID
+        task_app=req_json["task_app"],      # 任务app, 如抖音, 小红书, Tiktok
+        task_name=req_json["task_name"],    # 如更改头像, 发布视频
+        script_project_id=req_json["script_id"],    # 脚本ID
         param_json=req_json["param_json"],
         timing_execute=req_json["timing_execute"]
     ))
