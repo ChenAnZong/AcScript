@@ -15,13 +15,13 @@ project_man = ProjectManager()
 loger = Logger.logger
 
 
-# 请求地址为 http://127.0.0.1:5037/project/
+# 请求地址为 http://127.0.0.1:5031/project/
 @project.route("/", methods=["GET"])
 async def _index():
     return ts()
 
 
-# 请求地址为 http://127.0.0.1:5037/project/create
+# 请求地址为 http://127.0.0.1:5031/project/create
 @project.route("/create", methods=["POST"])
 async def _create_project():
     """
@@ -49,6 +49,7 @@ async def _delete_project():
     return json.jsonify(ret)
 
 
+# 按页列出所有工程
 @project.route("/list", methods=["POST"])
 async def _list_project():
     """
@@ -62,8 +63,15 @@ async def _list_project():
         ret = await project_man.query_all_project(per_page, page_index)
         return json.jsonify(ret)
     except:
-        loger.error(traceback.format_exc())
+        loger.error("查询工程错误", stack_info=True)
         return json.jsonify([])
+
+
+# 前端目前也用不上这个接口
+@project.route("/project_info", methods=["GET"])
+async def _project_info():
+    project_id = int(request.args.get("id"))
+    return json.jsonify(await project_man.query_one_project(project_id))
 
 
 @project.route("/update", methods=["POST"])
@@ -95,6 +103,7 @@ async def _update_project():
     return json.jsonify(ret)
 
 
+# 下载工程的链接如 http://127.0.0.1:5031/project/download?id=1
 @project.route("/download", methods=["GET"])
 async def _download_project():
     """

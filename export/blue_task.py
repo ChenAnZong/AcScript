@@ -1,6 +1,6 @@
 from quart import request, Quart, Blueprint, json, send_file, redirect, abort, websocket, send_from_directory, \
     make_response, \
-    render_template, stream_with_context
+    Response
 from data import ScriptTaskManager
 
 task = Blueprint("task", import_name=__name__, url_prefix="/task")
@@ -12,11 +12,11 @@ task_manager = ScriptTaskManager()
 async def _create_task():
     req_json = await request.get_json()
     return json.jsonify(await task_manager.create_task(
-        device_id=req_json["device_id"],           # 设备ID
-        project_id=req_json["script_project_id"],  # 脚本工程ID
-        task_app=req_json["task_app"],      # 任务app, 如抖音, 小红书, Tiktok
-        task_name=req_json["task_name"],    # 如更改头像, 发布视频
-        script_project_id=req_json["script_id"],    # 脚本ID
+        box_id=req_json["box_id"],                  # 盒子硬件ID
+        device_id=req_json["device_id"],            # 安卓设备ID
+        task_app=req_json["task_app"],              # 任务app, 如抖音, 小红书, Tiktok
+        task_name=req_json["task_name"],            # 如更改头像, 发布视频
+        script_project_id=req_json["script_id"],    # 脚本工程ID
         param_json=req_json["param_json"],
         timing_execute=req_json["timing_execute"]
     ))
@@ -37,16 +37,28 @@ async def _params_from_task():
 
 
 # 手机的工程被运行, 向服务器拉取任务信息, 服务器会自动选择一条适合执行的任务
-@task.route("/fetch_task", methods=["GET"])
+@task.route("/fetch_device_task", methods=["GET"])
 async def _fetch_task():
     try:
         device_id = request.args.get("device_id")  # 在手机上脚本通过 shell("cat /data/local/tmp/.id") 进行读取
         r = await task_manager.fetch_device_task(device_id)
         return json.jsonify(r)
     except Exception as e:
-        return f"获取错误: {repr(e)}"
+        return Response(f"获取错误: {repr(e)}", status=501)
 
 
+# PC 软件查询工程任务, 前端不用看这个接口
+@task.route("/fetch_pc_task", methods=["GET"])
+async def _distb_task():
+    try:
+        device_id = request.args.get("box_id")  # 在手机上脚本通过 shell("cat /data/local/tmp/.id") 进行读取
+        r = await task_manager.fetch_pc_task(device_id)
+        return json.jsonify(r)
+    except Exception as e:
+        return Response(f"获取错误: {repr(e)}", status=501)
+
+
+# 查询所有任务, 前端使用此接口
 @task.route("/query", methods=["POST"])
 async def _query_task():
     req_json = await request.get_json()

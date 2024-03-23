@@ -37,6 +37,7 @@ class ScriptTask:
                                         'task_name',    # 任务名称
                                         'date_create',  # 任务创建时间
                                         'date_update',  # 最近更新状态的时间
+                                        'box_id',       # 盒子硬件ID
                                         'device_id',    # 执行的设备ID
                                         'script_project_id',    # 需要拉取执行的脚本ID
                                         'task_params_json',     # 脚本的执行参数, 发送到脚本的执行参数
@@ -77,6 +78,7 @@ class ScriptTaskManager:
                                       uuid TEXT NOT NULL UNIQUE,
                                       date_create TINYINT NOT NULL,
                                       date_update TEXT NOT NULL,
+                                      box_id TEXT NOT NULL,
                                       device_id TEXT NOT NULL,
                                       script_project_id INTEGER NOT NULL,
                                       update_count INTEGER,
@@ -88,7 +90,6 @@ class ScriptTaskManager:
                                       status_desc TEXT
                                       );'''
         try:
-            print("初始化新表")
             await self.db.execute(sqlite_create_table_query)
             await self.db.commit()
         except aiosqlite.OperationalError as _:
@@ -102,16 +103,16 @@ class ScriptTaskManager:
         await self.db.commit()
         return ActionRet(True, f"成功删除任务, 条数:{cur.rowcount}")
 
-    async def create_task(self, device_id: str, script_project_id: int,
+    async def create_task(self, box_id: str, device_id: str, script_project_id: int,
                           task_app: str, task_name: str,
                           param_json: str, timing_execute: str) -> ActionRet:
         try:
             unique_id = str(uuid.uuid4())
             await self.db.execute(
-                "INSERT INTO Task (uuid, date_create, date_update, device_id, script_project_id, "
+                "INSERT INTO Task (uuid, date_create, date_update, box_id, device_id, script_project_id, "
                 "task_app, task_name, task_params_json, timing_execute, status_code, status_desc) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (unique_id, ts(), ts(), device_id, script_project_id,
+                (unique_id, ts(), ts(), box_id, device_id, script_project_id,
                  task_app, task_name, param_json, timing_execute, TaskStatus.CREATED.value, '新建任务')
             )
             return ActionRet(True, "新建任务成功")
@@ -162,6 +163,15 @@ class ScriptTaskManager:
             f"SELECT * FROM Task WHERE device_id='{device_id}' AND status_code={TaskStatus.PC_HAS_SEND} ORDER BY timing_execute DESC LIMIT 1;"
         )
         f = await a.fetchone()[0]
+        return ScriptTask.db_rows_to_task(f)
+
+    async def fetch_pc_task(self, box_id: str) -> ScriptTask:
+        # 选择一条创建的任务
+        cur: Cursor = await self.db.execute(
+            f"SELECT * FROM Task WHERE box_id='{box_id}' AND status_code={TaskStatus.CREATED} "
+            f"WHERE timing_execute > {ts()} ORDER BY timing_execute DESC;"
+        )
+        f = await cur.fetchall()
         return ScriptTask.db_rows_to_task(f)
 
 
@@ -242,7 +252,8 @@ class ProjectManager:
                 print("创建新卡数据库插入错误", repr(e))
             return ActionRet(False, f"新建项目失败, 错误原因: {repr(e)}")
 
-    async def update_project(self, project_id: int, md5: str, has_zip_change: bool, version_name: str, git_url: str, update_note: str) -> ActionRet:
+    async def update_project(self, project_id: int, md5: str, has_zip_change: bool, version_name: str, git_url: str,
+                             update_note: str) -> ActionRet:
         try:
             if has_zip_change:
                 sql = f"UPDATE Project SET date_update = ?, version_name = ?, git_url = ?, zip_md5 = ?" \
@@ -270,12 +281,18 @@ class ProjectManager:
         except Exception as e:
             return ActionRet(False, f"删除项目错误: {repr(e)}")
 
-    async def query_all_project(self, per_page:int= 10, page_index:int=1):
+    async def query_all_project(self, per_page:int= 10, page_index: int=1):
         sql = f"SELECT * FROM Project ORDER BY date_update DESC LIMIT {int(per_page)} " \
               f"OFFSET {(int(page_index) - 1) * (int(per_page))};"
         cur: Cursor = await self.db.execute(sql)
         alr = await cur.fetchall()
         return ScriptProject.db_rows_to_project(alr)
+
+    async def query_one_project(self, project_id: int) -> ScriptProject:
+        sql = f"SELECT * FROM Project WHERE id={project_id};"
+        cur: Cursor = await self.db.execute(sql)
+        o = (await cur.fetchone())[0]
+        return ScriptProject.db_rows_to_project(o)
 
 
 if __name__ == "__main__":
