@@ -1,8 +1,10 @@
 import os
-from quart import request, Quart, Blueprint, json, send_file, redirect, abort, websocket, send_from_directory, \
+import json
+from quart import request, Quart, Blueprint, send_file, redirect, abort, websocket, send_from_directory, \
     make_response, \
     render_template, stream_with_context, Response
 from data import ProjectManager
+from model import ActionRet, DbTypeEncoder
 from util import md5_file, ts
 from log import Logger
 
@@ -24,13 +26,12 @@ async def _create_project():
     新建脚本工程
     :return:
     """
-    print(request)
     req_json = await request.get_json()
     name = req_json["name"]  # 此名字后期不可更改
     author = req_json["author"]
     git_url = req_json["git_url"]
     ret = await project_man.create_project(name, author, git_url)
-    return json.jsonify(ret)
+    return ret.to_json()
 
 
 # [前端]删除工程
@@ -43,7 +44,7 @@ async def _delete_project():
     req_json = await request.get_json()
     name = req_json["project_id"]  # 此名字后期不可更改
     ret = await project_man.delete_project(name)
-    return json.jsonify(ret)
+    return ret.to_json()
 
 
 # [前端]按页列出所有工程
@@ -58,17 +59,19 @@ async def _list_project():
     page_index = req_json["page_index"]
     try:
         ret = await project_man.query_all_project(per_page, page_index)
-        return json.jsonify(ret)
-    except:
+        print("查询返回:", ret)
+        return json.dumps(ret, cls=DbTypeEncoder)
+    except Exception as e:
+        print(repr(e))
         loger.error("查询工程错误", stack_info=True)
-        return json.jsonify([])
+        return json.dumps([])
 
 
 # [PC]
 @project.route("/project_info", methods=["GET"])
 async def _project_info():
     project_id = int(request.args.get("id"))
-    return json.jsonify(await project_man.query_one_project(project_id))
+    return json.dumps(await project_man.query_one_project(project_id))
 
 
 # [前端]
@@ -98,7 +101,7 @@ async def _update_project():
         md5 = md5_file(local_file)
         os.rename(project_zip, md5 + ".zip")
     ret = await project_man.update_project(project_id, md5, md5 is not None, update_version, git_url, update_note)
-    return json.jsonify(ret)
+    return ret.to_json()
 
 
 # [前端/PC]下载工程的链接如 http://127.0.0.1:5031/project/download?id=1
@@ -114,3 +117,7 @@ async def _download_project():
         return await send_file(local, as_attachment=True)
     else:
         return Response(response="文件不存在", status=400)
+
+
+if __name__ == "__main__":
+    print(ActionRet(True, "成功").to_json())

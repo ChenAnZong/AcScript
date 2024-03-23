@@ -1,62 +1,11 @@
 import os
 import aiosqlite
-from collections import namedtuple
-from model import ActionRet
-import time
-from enum import Enum
+from model import ActionRet, ScriptTask, ScriptProject, TaskStatus
 from typing import Union, Tuple
 import asyncio
 import uuid
 from aiosqlite.cursor import Cursor
 from util import ts
-
-
-class TaskStatus(Enum):
-    """
-    执行的任务状态
-    """
-    # 刚新建状态
-    CREATED = 1
-    # 已向设备推送执行指令
-    PC_HAS_SEND = 3
-    # 手机正在执行中
-    DEVICE_EXE = 5
-    # 手机执行完成
-    DEVICE_FINISH = 7
-    # 手机执行异常
-    DEVICE_EXE_ERROR = 9
-
-
-class ScriptTask:
-    """
-    执行的脚本任务
-    """
-    # 下面这些字段跟数据库的列键名一模一样的
-    _base_task = namedtuple('Project', ['id',
-                                        'uuid',         # 任务唯一ID
-                                        'task_name',    # 任务名称
-                                        'date_create',  # 任务创建时间
-                                        'date_update',  # 最近更新状态的时间
-                                        'box_id',       # 盒子硬件ID
-                                        'device_id',    # 执行的设备ID
-                                        'script_project_id',    # 需要拉取执行的脚本ID
-                                        'task_params_json',     # 脚本的执行参数, 发送到脚本的执行参数
-                                        'timing_execute',       # 发送执行的时间戳
-                                        'status_code',          # 当前状态码 <TaskStatus>
-                                        'status_desc'])         # 当前状态描述
-
-    def __init__(self, *args):
-        self.project = ScriptTask._base_task(*args)
-
-    @staticmethod
-    def db_rows_to_task(rows):
-        # 多行
-        if isinstance(rows, list):
-            l = []
-            for i in rows:
-                l.append(ScriptTask(*i))
-            return l
-        return ScriptTask(*rows)  # 单行
 
 
 class ScriptTaskManager:
@@ -115,6 +64,7 @@ class ScriptTaskManager:
                 (unique_id, ts(), ts(), box_id, device_id, script_project_id,
                  task_app, task_name, param_json, timing_execute, TaskStatus.CREATED.value, '新建任务')
             )
+            await self.db.commit()
             return ActionRet(True, "新建任务成功")
         except aiosqlite.IntegrityError as e:
             if "UNIQUE constraint failed" in repr(e):
@@ -177,33 +127,6 @@ class ScriptTaskManager:
 ###################################
 
 
-class ScriptProject:
-    # 下面这些字段跟数据库的列键名一模一样的
-    _base_project = namedtuple('Project', ['id',
-                                           'name',
-                                           'date_create',
-                                           'date_update',
-                                           'author',
-                                           'version_name',
-                                           'update_count',
-                                           'git_url',
-                                           'zip_md5',
-                                           'update_note_current'])
-
-    def __init__(self, *args):
-        self.project = ScriptProject._base_project(*args)
-
-    @staticmethod
-    def db_rows_to_project(rows):
-        # 多行
-        if isinstance(rows, list):
-            l = []
-            for i in rows:
-                l.append(ScriptProject(*i))
-            return l
-        return ScriptProject(*rows)  # 单行
-
-
 class ProjectManager:
     def __init__(self):
         asyncio.get_event_loop().run_until_complete(asyncio.gather(self.init()))
@@ -240,13 +163,14 @@ class ProjectManager:
     async def create_project(self, project_name: str, project_author: str, project_git_url: str) -> ActionRet:
         try:
             await self.db.execute(
-                f"INSERT INTO Project (name, date_create, author, git_url, update_count)  VALUES "
+                f"INSERT INTO Project (name, date_create, author, git_url, update_count) VALUES "
                 f"('{project_name}', '{ts()}', '{project_author}', '{project_git_url}', 0);"
             )
+            await self.db.commit()
             return ActionRet(True, "新建项目成功")
         except aiosqlite.IntegrityError as e:
             if "UNIQUE constraint failed" in repr(e):
-                pass
+                return ActionRet(True, f"脚本名字重复了: {project_name}")
             else:
                 print("创建新卡数据库插入错误", repr(e))
             return ActionRet(False, f"新建项目失败, 错误原因: {repr(e)}")
@@ -264,6 +188,7 @@ class ProjectManager:
                       f"update_note_current = ? WHERE id={project_id}; "
                 sql_args = (ts(), version_name, git_url, update_note,)
             await self.db.execute(sql, sql_args)
+            await self.db.commit()
             return ActionRet(True, "更新项目成功")
         except aiosqlite.IntegrityError as e:
             if "UNIQUE constraint failed" in repr(e):
@@ -276,6 +201,7 @@ class ProjectManager:
         try:
             sql = f"DELETE FROM Project Where id={project_id};"
             cur = await self.db.execute(sql)
+            await self.db.commit()
             return ActionRet(True, f"删除{cur.rowcount}条项目数据")
         except Exception as e:
             return ActionRet(False, f"删除项目错误: {repr(e)}")

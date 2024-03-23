@@ -1,7 +1,10 @@
-from quart import request, Quart, Blueprint, json, send_file, redirect, abort, websocket, send_from_directory, \
+import logging
+import json
+from quart import request, Quart, Blueprint, send_file, redirect, abort, websocket, send_from_directory, \
     make_response, \
     Response
-from data import ScriptTaskManager
+from data import ScriptTaskManager, ActionRet
+from model import DbTypeEncoder
 
 task = Blueprint("task", import_name=__name__, url_prefix="/task")
 task_manager = ScriptTaskManager()
@@ -11,7 +14,7 @@ task_manager = ScriptTaskManager()
 @task.route("/create", methods=["POST"])
 async def _create_task():
     req_json = await request.get_json()
-    return json.jsonify(await task_manager.create_task(
+    ret: ActionRet = await task_manager.create_task(
         box_id=req_json["box_id"],                  # 盒子硬件ID
         device_id=req_json["device_id"],            # 安卓设备ID
         task_app=req_json["task_app"],              # 任务app, 如抖音, 小红书, Tiktok
@@ -19,16 +22,18 @@ async def _create_task():
         script_project_id=req_json["script_id"],    # 脚本工程ID
         param_json=req_json["param_json"],
         timing_execute=req_json["timing_execute"]
-    ))
+    )
+    return ret.to_json()
 
 
 # [前端]删除任务
 @task.route("/delete", methods=["POST"])
 async def _delete_task():
     req_json = await request.get_json()
-    return json.jsonify(await task_manager.delete_task(
+    ret = await task_manager.delete_task(
         task_uuid=req_json["task_unique_id"]  # 可以为数组, 或者字符串均可
-    ))
+    )
+    return ret.to_json()
 
 
 # [待用]查询任务的具体参数, 这个暂时用不上
@@ -43,7 +48,7 @@ async def _fetch_task():
     try:
         device_id = request.args.get("device_id")  # 在手机上脚本通过 shell("cat /data/local/tmp/.id") 进行读取
         r = await task_manager.fetch_device_task(device_id)
-        return json.jsonify(r)
+        return json.dumps(r, cls=DbTypeEncoder)
     except Exception as e:
         return Response(f"获取错误: {repr(e)}", status=501)
 
@@ -54,8 +59,9 @@ async def _distb_task():
     try:
         device_id = request.args.get("box_id")  # 在手机上脚本通过 shell("cat /data/local/tmp/.id") 进行读取
         r = await task_manager.fetch_pc_task(device_id)
-        return json.jsonify(r)
+        return json.dumps(r, cls=DbTypeEncoder)
     except Exception as e:
+        logging.error("获取PC任务", stack_info=True)
         return Response(f"获取错误: {repr(e)}", status=501)
 
 
@@ -63,20 +69,22 @@ async def _distb_task():
 @task.route("/query", methods=["POST"])
 async def _query_task():
     req_json = await request.get_json()
-    return json.jsonify(await task_manager.query_all_task(
+    ret_task = await task_manager.query_all_task(
         per_page=req_json["per_page"],
         page_index=req_json["page_index"],
         task_status_code=req_json.get("task_status_code"),  # 如果提交了此参数则指定
         device_id=req_json.get("device_id")  # 如果提交了此参数则指定
-    ))
+    )
+    return json.dumps(ret_task, cls=DbTypeEncoder)
 
 
 # [前端/PC/手机]脚本运行完毕后, 请求这个接口更新任务状态
 @task.route("/update_status", methods=["POST"])
 async def _update_status():
     req_json = await request.get_json()
-    return json.jsonify(task_manager.update_task_status(
+    ret:ActionRet = await task_manager.update_task_status(
         task_unique_id=req_json["task_unique_id"],
         status_code=req_json["status_code"],
         status_desc=req_json["status_desc"]
-    ))
+    )
+    return ret.to_json()
