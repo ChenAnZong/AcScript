@@ -7,7 +7,7 @@ task = Blueprint("task", import_name=__name__, url_prefix="/task")
 task_manager = ScriptTaskManager()
 
 
-# 请求地址为 http://127.0.0.1:5031/task/create
+# [前端]请求地址为 http://127.0.0.1:5031/task/create
 @task.route("/create", methods=["POST"])
 async def _create_task():
     req_json = await request.get_json()
@@ -22,6 +22,7 @@ async def _create_task():
     ))
 
 
+# [前端]删除任务
 @task.route("/delete", methods=["POST"])
 async def _delete_task():
     req_json = await request.get_json()
@@ -30,13 +31,13 @@ async def _delete_task():
     ))
 
 
-# 查询任务的具体参数, 这个暂时用不上
+# [待用]查询任务的具体参数, 这个暂时用不上
 @task.route("/task_params", methods=["GET"])
 async def _params_from_task():
     return await task_manager.get_task_params(request.args["task_unique_id"])
 
 
-# 手机的工程被运行, 向服务器拉取任务信息, 服务器会自动选择一条适合执行的任务
+# [手机]手机的工程被运行, 向服务器拉取任务信息, 服务器会自动选择一条适合执行的任务
 @task.route("/fetch_device_task", methods=["GET"])
 async def _fetch_task():
     try:
@@ -47,7 +48,7 @@ async def _fetch_task():
         return Response(f"获取错误: {repr(e)}", status=501)
 
 
-# PC 软件查询工程任务, 前端不用看这个接口
+# [PC]软件查询工程任务, 前端不用看这个接口
 @task.route("/fetch_pc_task", methods=["GET"])
 async def _distb_task():
     try:
@@ -58,7 +59,7 @@ async def _distb_task():
         return Response(f"获取错误: {repr(e)}", status=501)
 
 
-# 查询所有任务, 前端使用此接口
+# [前端]查询所有任务
 @task.route("/query", methods=["POST"])
 async def _query_task():
     req_json = await request.get_json()
@@ -70,7 +71,7 @@ async def _query_task():
     ))
 
 
-# 脚本运行完毕后, 请求这个接口更新任务状态
+# [前端/PC/手机]脚本运行完毕后, 请求这个接口更新任务状态
 @task.route("/update_status", methods=["POST"])
 async def _update_status():
     req_json = await request.get_json()

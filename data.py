@@ -166,7 +166,6 @@ class ScriptTaskManager:
         return ScriptTask.db_rows_to_task(f)
 
     async def fetch_pc_task(self, box_id: str) -> ScriptTask:
-        # 选择一条创建的任务
         cur: Cursor = await self.db.execute(
             f"SELECT * FROM Task WHERE box_id='{box_id}' AND status_code={TaskStatus.CREATED} "
             f"WHERE timing_execute > {ts()} ORDER BY timing_execute DESC;"

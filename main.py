@@ -1,3 +1,4 @@
+import logging
 import traceback
 import json
 import time
@@ -31,4 +32,6 @@ async def _index():
         "pid": os.getpid()
     })
 
-ServerAPP.start()
+while True:
+    logging.info(">>>>>>>>")
+    ServerAPP.start()

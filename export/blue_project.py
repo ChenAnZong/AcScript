@@ -1,8 +1,4 @@
 import os
-import time
-import asyncio
-import traceback
-
 from quart import request, Quart, Blueprint, json, send_file, redirect, abort, websocket, send_from_directory, \
     make_response, \
     render_template, stream_with_context, Response
@@ -15,13 +11,13 @@ project_man = ProjectManager()
 loger = Logger.logger
 
 
-# 请求地址为 http://127.0.0.1:5031/project/
+# [前端]此处后面返回前端的网页index.html; 请求地址为 http://127.0.0.1:5031/project/
 @project.route("/", methods=["GET"])
 async def _index():
     return ts()
 
 
-# 请求地址为 http://127.0.0.1:5031/project/create
+# [前端]请求地址为 http://127.0.0.1:5031/project/create
 @project.route("/create", methods=["POST"])
 async def _create_project():
     """
@@ -37,6 +33,7 @@ async def _create_project():
     return json.jsonify(ret)
 
 
+# [前端]删除工程
 @project.route("/delete", methods=["POST"])
 async def _delete_project():
     """
@@ -49,7 +46,7 @@ async def _delete_project():
     return json.jsonify(ret)
 
 
-# 按页列出所有工程
+# [前端]按页列出所有工程
 @project.route("/list", methods=["POST"])
 async def _list_project():
     """
@@ -67,13 +64,14 @@ async def _list_project():
         return json.jsonify([])
 
 
-# 前端目前也用不上这个接口
+# [PC]
 @project.route("/project_info", methods=["GET"])
 async def _project_info():
     project_id = int(request.args.get("id"))
     return json.jsonify(await project_man.query_one_project(project_id))
 
 
+# [前端]
 @project.route("/update", methods=["POST"])
 async def _update_project():
     """
@@ -103,7 +101,7 @@ async def _update_project():
     return json.jsonify(ret)
 
 
-# 下载工程的链接如 http://127.0.0.1:5031/project/download?id=1
+# [前端/PC]下载工程的链接如 http://127.0.0.1:5031/project/download?id=1
 @project.route("/download", methods=["GET"])
 async def _download_project():
     """
