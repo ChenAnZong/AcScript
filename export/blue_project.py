@@ -3,8 +3,10 @@ import json
 from quart import request, Quart, Blueprint, send_file, redirect, abort, websocket, send_from_directory, \
     make_response, \
     render_template, stream_with_context, Response
+from quart.datastructures import FileStorage
+
 from data import ProjectManager
-from model import ActionRet, DbTypeEncoder
+from model import ActionRet, DbTypeEncoder, ScriptProject
 from util import md5_file, ts
 from log import Logger
 
@@ -93,13 +95,18 @@ async def _update_project():
     update_version = form["update_version"]
     # 提交的Zip文件工程包, 如果没有更新变化, 不要提交此字段
     md5 = None
-    if "zip" in request.files:
-        project_zip = request.files["zip"]
+    fs = await request.files
+    if "zip" in fs:
+        project_zip: FileStorage = fs["zip"]
         # 保存在服务器project_zip目录下 文件名为 <md5>.zip
-        local_file = f"project_zip/{project_zip.filename}.zip"
-        project_zip.save(local_file)
+        local_file = f"project_zip/{project_zip.filename}"
+        if os.path.exists(local_file):
+            os.remove(local_file)
+        await project_zip.save(destination=local_file)
         md5 = md5_file(local_file)
-        os.rename(project_zip, md5 + ".zip")
+        rn = os.path.join("project_zip", md5 + ".zip")
+        if not os.path.exists(rn):
+            os.rename(local_file, rn)
     ret = await project_man.update_project(project_id, md5, md5 is not None, update_version, git_url, update_note)
     return ret.to_json()
 
@@ -112,7 +119,8 @@ async def _download_project():
     :return:
     """
     project_id = request.args.get("id")
-    local = os.path.join("../project_zip", project_id + ".zip")
+    p: ScriptProject = await project_man.query_one_project(int(project_id))
+    local = os.path.join("project_zip", p.project.zip_md5 + ".zip")
     if os.path.exists(local):
         return await send_file(local, as_attachment=True)
     else:

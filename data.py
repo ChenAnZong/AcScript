@@ -112,7 +112,7 @@ class ScriptTaskManager:
         a = await self.db.execute(
             f"SELECT * FROM Task WHERE device_id='{device_id}' AND status_code={TaskStatus.PC_HAS_SEND} ORDER BY timing_execute DESC LIMIT 1;"
         )
-        f = await a.fetchone()[0]
+        f = await a.fetchone()
         return ScriptTask.db_rows_to_task(f)
 
     async def fetch_pc_task(self, box_id: str) -> ScriptTask:
@@ -179,12 +179,12 @@ class ProjectManager:
                              update_note: str) -> ActionRet:
         try:
             if has_zip_change:
-                sql = f"UPDATE Project SET date_update = ?, version_name = ?, git_url = ?, zip_md5 = ?" \
-                      f"update_note_current = ? WHERE id={project_id}; "
+                sql = f"UPDATE Project SET date_update = ?, version_name = ?, git_url = ?, zip_md5 = ? ," \
+                      f"update_note_current = ? WHERE id={project_id};"
                 sql_args = (ts(), version_name, git_url, md5, update_note)
                 await self.db.execute("UPDATE Project SET update_count = update_count + 1;")
             else:
-                sql = f"UPDATE Project SET date_update = ?, version_name = ?, git_url = ?" \
+                sql = f"UPDATE Project SET date_update = ?, version_name = ?, git_url = ? ," \
                       f"update_note_current = ? WHERE id={project_id}; "
                 sql_args = (ts(), version_name, git_url, update_note,)
             await self.db.execute(sql, sql_args)
@@ -216,7 +216,7 @@ class ProjectManager:
     async def query_one_project(self, project_id: int) -> ScriptProject:
         sql = f"SELECT * FROM Project WHERE id={project_id};"
         cur: Cursor = await self.db.execute(sql)
-        o = (await cur.fetchone())[0]
+        o = await cur.fetchone()
         return ScriptProject.db_rows_to_project(o)
 
 
