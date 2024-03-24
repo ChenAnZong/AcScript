@@ -13,6 +13,17 @@ task_manager = ScriptTaskManager()
 # [前端]请求地址为 http://127.0.0.1:5031/task/create
 @task.route("/create", methods=["POST"])
 async def _create_task():
+    """
+    {
+    "box_id": "42ed7bb33e47e1d9a7edb6d6bf5cd200",
+    "device_id": "b9d95d3a69df76dbe7622db892f12fd676828622426efba3ac483e80631011de",
+    "task_app": "抖音",
+    "task_name": "发布视频",
+    "script_id": 5,
+    "param_json":" {\"aaaa\":6}",
+    "timing_execute": 1711243885
+    }
+    """
     req_json = await request.get_json()
     ret: ActionRet = await task_manager.create_task(
         box_id=req_json["box_id"],                  # 盒子硬件ID
@@ -20,8 +31,8 @@ async def _create_task():
         task_app=req_json["task_app"],              # 任务app, 如抖音, 小红书, Tiktok
         task_name=req_json["task_name"],            # 如更改头像, 发布视频
         script_project_id=req_json["script_id"],    # 脚本工程ID
-        param_json=req_json["param_json"],
-        timing_execute=req_json["timing_execute"]
+        param_json=req_json["param_json"],          # 任务参数的json字符串, 脚本运行的时候需要使用
+        timing_execute=req_json["timing_execute"]   # 执行时间, 以秒为单位的时间戳 170xxx
     )
     return ret.to_json()
 
@@ -48,8 +59,11 @@ async def _fetch_task():
     try:
         device_id = request.args.get("device_id")  # 在手机上脚本通过 shell("cat /data/local/tmp/.id") 进行读取
         r = await task_manager.fetch_device_task(device_id)
+        if r is None:
+            return json.dumps({})
         return json.dumps(r, cls=DbTypeEncoder)
     except Exception as e:
+        logging.error("获取脚本任务", repr(e), stack_info=True)
         return Response(f"获取错误: {repr(e)}", status=501)
 
 
@@ -61,7 +75,7 @@ async def _distb_task():
         r = await task_manager.fetch_pc_task(device_id)
         return json.dumps(r, cls=DbTypeEncoder)
     except Exception as e:
-        logging.error("获取PC任务", stack_info=True)
+        logging.error("获取PC任务", repr(e), stack_info=True)
         return Response(f"获取错误: {repr(e)}", status=501)
 
 

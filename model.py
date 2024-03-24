@@ -30,7 +30,6 @@ class ScriptTask:
     # 下面这些字段跟数据库的列键名一模一样的
     _base_task = namedtuple('Project', ['id',
                                         'uuid',         # 任务唯一ID
-                                        'task_name',    # 任务名称
                                         'date_create',  # 任务创建时间
                                         'date_update',  # 最近更新状态的时间
                                         'box_id',       # 盒子硬件ID
@@ -38,6 +37,8 @@ class ScriptTask:
                                         'script_project_id',    # 需要拉取执行的脚本ID
                                         'task_params_json',     # 脚本的执行参数, 发送到脚本的执行参数
                                         'timing_execute',       # 发送执行的时间戳
+                                        'task_app',             # 目标APP
+                                        'task_name',            # 任务名称
                                         'status_code',          # 当前状态码 <TaskStatus>
                                         'status_desc'])         # 当前状态描述
 

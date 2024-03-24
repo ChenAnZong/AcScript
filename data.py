@@ -30,11 +30,10 @@ class ScriptTaskManager:
                                       box_id TEXT NOT NULL,
                                       device_id TEXT NOT NULL,
                                       script_project_id INTEGER NOT NULL,
-                                      update_count INTEGER,
                                       task_params_json TEXT NOT NULL,
                                       timing_execute TEXT,
                                       task_app TEXT,
-                                      task_name TEXT
+                                      task_name TEXT,
                                       status_code TINYINT,
                                       status_desc TEXT
                                       );'''
@@ -46,10 +45,12 @@ class ScriptTaskManager:
 
     async def delete_task(self, task_uuid: Union[Tuple[str], str]) -> ActionRet:
         if isinstance(task_uuid, (list, tuple,)):
-            cur = await self.db.executemany(f"DELETE FROM Task WHERE code = ? ", [(c,) for c in task_uuid])
+            cur = await self.db.executemany(f"DELETE FROM Task WHERE uuid = ? ", [(c,) for c in task_uuid])
         else:
-            cur = await self.db.execute(f"DELETE FROM Task WHERE code='{task_uuid}'")
+            cur = await self.db.execute(f"DELETE FROM Task WHERE uuid='{task_uuid}'")
         await self.db.commit()
+        if cur.rowcount == 0:
+            return ActionRet(False, f"未删除任何任务, 请确保任务ID正常")
         return ActionRet(True, f"成功删除任务, 条数:{cur.rowcount}")
 
     async def create_task(self, box_id: str, device_id: str, script_project_id: int,
@@ -60,7 +61,7 @@ class ScriptTaskManager:
             await self.db.execute(
                 "INSERT INTO Task (uuid, date_create, date_update, box_id, device_id, script_project_id, "
                 "task_app, task_name, task_params_json, timing_execute, status_code, status_desc) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (unique_id, ts(), ts(), box_id, device_id, script_project_id,
                  task_app, task_name, param_json, timing_execute, TaskStatus.CREATED.value, '新建任务')
             )
@@ -75,21 +76,24 @@ class ScriptTaskManager:
 
     async def update_task_status(self, task_unique_id: str, status_code: int, status_desc: str) -> ActionRet:
         try:
-            sql = f"UPDATE Task SET status_code = ?, status_desc = ?, date_update = ?" \
-                  f"WHERE uuid={task_unique_id}; "
-            sql_args = (status_code, status_desc, ts(), task_unique_id)
-            await self.db.execute(sql, sql_args)
-            return ActionRet(True, "更新任务状态成功")
+            sql = f"UPDATE Task SET status_code = ?, status_desc = ?, date_update = ? " \
+                  f"WHERE uuid='{task_unique_id}';"
+            sql_args = (status_code, status_desc, ts(),)
+            cur = await self.db.execute(sql, sql_args)
+            if cur.rowcount == 0:
+                return ActionRet(False, f"更新任务状态失败, 请确保任务ID正常")
+            return ActionRet(True, f"更新任务状态完成: {cur.rowcount}")
         except Exception as e:
             return ActionRet(False, f"更新任务状态失败, 错误原因: {repr(e)}")
 
-    async def query_all_task(self, per_page: int = 10, page_index: int = 1, task_status_code: int = None, device_id: str = None):
+    async def query_all_task(self, per_page: int = 10, page_index: int = 1, task_status_code: int = None,
+                             device_id: str = None):
         where_sql = ""
         # 指定任务类型筛选
         if task_status_code is not None:
             where_sql = f"WHERE status_code={task_status_code}"
         # 指定设备ID筛选
-        if device_id is None:
+        if device_id is not None:
             if where_sql:
                 where_sql += f" AND device_id={device_id}"
             else:
@@ -97,6 +101,7 @@ class ScriptTaskManager:
 
         sql = f"SELECT * FROM Task ORDER BY date_update DESC LIMIT {int(per_page)} " \
               f"OFFSET {(int(page_index) - 1) * (int(per_page))} {where_sql};"
+        print(sql)
         cur: Cursor = await self.db.execute(sql)
         alr = await cur.fetchall()
         return ScriptTask.db_rows_to_task(alr)
@@ -107,18 +112,20 @@ class ScriptTaskManager:
         )
         return (await a.fetchone())[0]
 
-    async def fetch_device_task(self, device_id: str) -> ScriptTask:
+    async def fetch_device_task(self, device_id: str) -> Union[ScriptTask, None]:
         # 选择一条创建的任务
         a = await self.db.execute(
-            f"SELECT * FROM Task WHERE device_id='{device_id}' AND status_code={TaskStatus.PC_HAS_SEND} ORDER BY timing_execute DESC LIMIT 1;"
+            f"SELECT * FROM Task WHERE device_id='{device_id}' AND status_code={TaskStatus.PC_HAS_SEND.value} ORDER BY timing_execute DESC LIMIT 1;"
         )
         f = await a.fetchone()
+        if f is None:
+            return None
         return ScriptTask.db_rows_to_task(f)
 
     async def fetch_pc_task(self, box_id: str) -> ScriptTask:
         cur: Cursor = await self.db.execute(
-            f"SELECT * FROM Task WHERE box_id='{box_id}' AND status_code={TaskStatus.CREATED} "
-            f"WHERE timing_execute > {ts()} ORDER BY timing_execute DESC;"
+            f"SELECT * FROM Task WHERE box_id='{box_id}' AND status_code={TaskStatus.CREATED.value} "
+            f"AND timing_execute < {ts()} ORDER BY timing_execute DESC;"
         )
         f = await cur.fetchall()
         return ScriptTask.db_rows_to_task(f)
@@ -197,7 +204,7 @@ class ProjectManager:
                 print("创建新卡数据库插入错误", repr(e))
             return ActionRet(False, f"新建项目失败, 错误原因: {repr(e)}")
 
-    async def delete_project(self, project_id:int) -> ActionRet:
+    async def delete_project(self, project_id: int) -> ActionRet:
         try:
             sql = f"DELETE FROM Project Where id={project_id};"
             cur = await self.db.execute(sql)
@@ -206,7 +213,7 @@ class ProjectManager:
         except Exception as e:
             return ActionRet(False, f"删除项目错误: {repr(e)}")
 
-    async def query_all_project(self, per_page:int= 10, page_index: int=1):
+    async def query_all_project(self, per_page: int = 10, page_index: int = 1):
         sql = f"SELECT * FROM Project ORDER BY date_update DESC LIMIT {int(per_page)} " \
               f"OFFSET {(int(page_index) - 1) * (int(per_page))};"
         cur: Cursor = await self.db.execute(sql)

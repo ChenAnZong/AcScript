@@ -57,8 +57,8 @@ async def _list_project():
     :return:
     """
     req_json = await request.get_json()
-    per_page = req_json["per_page"]
-    page_index = req_json["page_index"]
+    per_page = req_json["per_page"]         # 每页多少个行
+    page_index = req_json["page_index"]     # 当前第几页, 从1开始
     try:
         ret = await project_man.query_all_project(per_page, page_index)
         print("查询返回:", ret)
