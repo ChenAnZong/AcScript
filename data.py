@@ -31,7 +31,7 @@ class ScriptTaskManager:
                                       device_id TEXT NOT NULL,
                                       script_project_id INTEGER NOT NULL,
                                       task_params_json TEXT NOT NULL,
-                                      timing_execute TEXT,
+                                      timing_execute INTEGER TEXT,
                                       task_app TEXT,
                                       task_name TEXT,
                                       status_code TINYINT,
