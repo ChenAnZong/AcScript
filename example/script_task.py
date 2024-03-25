@@ -7,15 +7,16 @@ import sys
 
 def get_device_id() -> str:
     """
-    请求手机的文件
+    获取手机的设备ID
     :return:
     """
-    # id_path = "/data/local/tmp/.id"
-    # with codecs.open(id_path, mode="r") as fr:
-    #     return fr.read()
-
-    # 可以使用这个来进行测试
-    return "b9d95d3a69df76dbe7622db892f12fd676828622426efba3ac483e80631011de"
+    if sys.platform != "win32":
+        id_path = "/data/local/tmp/.id"
+        with codecs.open(id_path, mode="r") as fr:
+            return fr.read()
+    else:
+        # 可以使用这个来进行测试
+        return "b9d95d3a69df76dbe7622db892f12fd676828622426efba3ac483e80631011de"
 
 
 class TaskStatus(Enum):
