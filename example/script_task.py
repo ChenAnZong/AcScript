@@ -32,15 +32,14 @@ class Task:
     SERVER_BASE_URL = "http://127.0.0.1:5031"
 
     def __init__(self):
-        print( requests.get(f"{Task.SERVER_BASE_URL}/task/fetch_device_task?device_id={get_device_id()}"))
         ret_json = requests.get(f"{Task.SERVER_BASE_URL}/task/fetch_device_task?device_id={get_device_id()}").json()
-        print(ret_json)
-        # ret_json 例子如下, 我们脚本只关心运行参数与uuid:
+        # print(ret_json)
+        # 输出例子如下, 我们脚本只关心运行参数与uuid:
         # {
         #     "id": 3,
         #     "uuid": "5b2088cb-7f08-4003-b61e-87e068c88876",
         #     "date_create": 1711246437,
-        #     "date_update": "1711246437",
+        #     "date_update": 1711246437,
         #     "box_id": "42ed7bb33e47e1d9a7edb6d6bf5cd200",
         #     "device_id": "b9d95d3a69df76dbe7622db892f12fd676828622426efba3ac483e80631011de",
         #     "script_project_id": 5,
@@ -63,7 +62,7 @@ class Task:
             "status_code": st.value,
             "status_desc": desc
         }
-        requests.post(f"{self.SERVER_BASE_URL}/task/update_status?device_id={get_device_id()}", json=rj)
+        print(requests.post(f"{self.SERVER_BASE_URL}/task/update_status?device_id={get_device_id()}", json=rj).text)
 
     def __str__(self):
         return str(self.ret_json)
@@ -77,9 +76,12 @@ if __name__ == "__main__":
     # 如果脚本运行异常
     task.update_task_status(TaskStatus.DEVICE_EXE_ERROR, "执行错误, 抖音账号未登录")
 
+    # 如果代码错误, 也可以上报, 虽然前端不好看, 先排查问题再说
+    try:
+        a = 1 / 0
+    except Exception as e:
+        task.update_task_status(TaskStatus.DEVICE_EXE_ERROR, f"代码错误: {repr(e)}")
+
     # 如果脚本正常运行完毕
     task.update_task_status(TaskStatus.DEVICE_FINISH, "执行完成")
-
-
-
 

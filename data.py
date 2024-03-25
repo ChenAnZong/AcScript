@@ -25,8 +25,8 @@ class ScriptTaskManager:
         sqlite_create_table_query = '''CREATE TABLE Task (
                                       id INTEGER PRIMARY KEY AUTOINCREMENT,
                                       uuid TEXT NOT NULL UNIQUE,
-                                      date_create TINYINT NOT NULL,
-                                      date_update TEXT NOT NULL,
+                                      date_create INTEGER NOT NULL,
+                                      date_update INTEGER NOT NULL,
                                       box_id TEXT NOT NULL,
                                       device_id TEXT NOT NULL,
                                       script_project_id INTEGER NOT NULL,
@@ -76,10 +76,10 @@ class ScriptTaskManager:
 
     async def update_task_status(self, task_unique_id: str, status_code: int, status_desc: str) -> ActionRet:
         try:
-            sql = f"UPDATE Task SET status_code = ?, status_desc = ?, date_update = ? " \
-                  f"WHERE uuid='{task_unique_id}';"
-            sql_args = (status_code, status_desc, ts(),)
+            sql = f"UPDATE Task SET status_code = ?, status_desc = ?, date_update = ? WHERE uuid = ?;"
+            sql_args = (status_code, status_desc, ts(), task_unique_id)
             cur = await self.db.execute(sql, sql_args)
+            await self.db.commit()
             if cur.rowcount == 0:
                 return ActionRet(False, f"更新任务状态失败, 请确保任务ID正常")
             return ActionRet(True, f"更新任务状态完成: {cur.rowcount}")
