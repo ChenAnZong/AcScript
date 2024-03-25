@@ -87,11 +87,10 @@ class DbTypeEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, ScriptProject):
             obj: ScriptProject
-            return json.dumps(convert_namedtuple_to_dict(obj.project))
+            return convert_namedtuple_to_dict(obj.project)
         if isinstance(obj, ScriptTask):
             obj: ScriptTask
-            return json.dumps(convert_namedtuple_to_dict(obj.task))
-
+            return convert_namedtuple_to_dict(obj.task)
         return super(DbTypeEncoder, self).default(obj)
 
 

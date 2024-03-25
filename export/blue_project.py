@@ -61,7 +61,6 @@ async def _list_project():
     page_index = req_json["page_index"]     # 当前第几页, 从1开始
     try:
         ret = await project_man.query_all_project(per_page, page_index)
-        print("查询返回:", ret)
         return json.dumps(ret, cls=DbTypeEncoder)
     except Exception as e:
         print(repr(e))
@@ -120,6 +119,8 @@ async def _download_project():
     """
     project_id = request.args.get("id")
     p: ScriptProject = await project_man.query_one_project(int(project_id))
+    if p.project.zip_md5 is None:
+        return Response(response="当前工程未上传", status=400)
     local = os.path.join("project_zip", p.project.zip_md5 + ".zip")
     if os.path.exists(local):
         return await send_file(local, as_attachment=True)

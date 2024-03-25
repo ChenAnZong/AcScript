@@ -214,7 +214,9 @@ class ProjectManager:
             return ActionRet(False, f"删除项目错误: {repr(e)}")
 
     async def query_all_project(self, per_page: int = 10, page_index: int = 1):
-        sql = f"SELECT * FROM Project ORDER BY date_update DESC LIMIT {int(per_page)} " \
+        if page_index < 1:
+            page_index = 1
+        sql = f"SELECT * FROM Project ORDER BY date_update DESC, date_create DESC LIMIT {int(per_page)} " \
               f"OFFSET {(int(page_index) - 1) * (int(per_page))};"
         cur: Cursor = await self.db.execute(sql)
         alr = await cur.fetchall()
