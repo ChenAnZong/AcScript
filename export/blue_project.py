@@ -128,5 +128,14 @@ async def _download_project():
         return Response(response="文件不存在", status=400)
 
 
+@project.route("/update_manifest", methods=["POST"])
+async def _update_project_manifest():
+    f = await request.form
+    project_id = int(f["project_id"])
+    manifest = f["manifest"]
+    ret = await project_man.update_manifest(project_id, manifest)
+    return ret.to_json()
+
+
 if __name__ == "__main__":
     print(ActionRet(True, "成功").to_json())

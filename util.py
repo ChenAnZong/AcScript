@@ -2,8 +2,8 @@ import hashlib
 import time
 
 
-def ts() -> str:
-    return str(int(time.time()))
+def ts() -> int:
+    return int(time.time())
 
 
 def md5_file(path) -> str:

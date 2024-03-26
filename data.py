@@ -101,7 +101,6 @@ class ScriptTaskManager:
 
         sql = f"SELECT * FROM Task ORDER BY date_update DESC LIMIT {int(per_page)} " \
               f"OFFSET {(int(page_index) - 1) * (int(per_page))} {where_sql};"
-        print(sql)
         cur: Cursor = await self.db.execute(sql)
         alr = await cur.fetchall()
         return ScriptTask.db_rows_to_task(alr)
@@ -152,14 +151,15 @@ class ProjectManager:
         sqlite_create_table_query = '''CREATE TABLE Project (
                                      id INTEGER PRIMARY KEY AUTOINCREMENT,
                                      name TEXT NOT NULL UNIQUE,
-                                     date_create TEXT NOT NULL,
-                                     date_update TEXT,
+                                     date_create INTEGER NOT NULL,
+                                     date_update INTEGER,
                                      author TEXT NOT NULL,
                                      version_name TEXT,
                                      update_count INTEGER,
                                      git_url TEXT,
                                      zip_md5 TEXT,
-                                     update_note_current TEXT
+                                     update_note_current TEXT,
+                                     manifest TEXT,
                                      );'''
         try:
             await self.db.execute(sqlite_create_table_query)
@@ -171,7 +171,7 @@ class ProjectManager:
         try:
             await self.db.execute(
                 f"INSERT INTO Project (name, date_create, author, git_url, update_count) VALUES "
-                f"('{project_name}', '{ts()}', '{project_author}', '{project_git_url}', 0);"
+                f"('{project_name}', {ts()}, '{project_author}', '{project_git_url}', 0);"
             )
             await self.db.commit()
             return ActionRet(True, "新建项目成功")
@@ -227,6 +227,15 @@ class ProjectManager:
         cur: Cursor = await self.db.execute(sql)
         o = await cur.fetchone()
         return ScriptProject.db_rows_to_project(o)
+
+    async def update_manifest(self, project_id:int, manifest: str) -> ActionRet:
+        try:
+            sql = f"UPDATE Project SET date_update = ?, manifest = ? WHERE id={project_id};"
+            cur = await self.db.execute(sql, (ts(), manifest, ))
+            await self.db.commit()
+            return ActionRet(True, f"更新{cur.rowcount}条项目数据")
+        except Exception as e:
+            return ActionRet(False, f"更新项目摘要错误: {repr(e)}")
 
 
 if __name__ == "__main__":

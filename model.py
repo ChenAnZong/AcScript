@@ -12,29 +12,29 @@ class TaskStatus(Enum):
     以下常量值 需要使用复制即可; 如果新增状态, 不会修改已有的数字值
     """
     #  任务新建
-    CREATED = 1,
+    CREATED = 1
     #  推送异常
-    PC_SEND_ERROR = 2,
+    PC_SEND_ERROR = 2
     #  等待机位
-    WAIT_SLOT = 21,
+    WAIT_SLOT = 21
     #  正在开机
-    WAIT_BOOT = 22,
+    WAIT_BOOT = 22
     #  开机错误
-    BOOR_ERROR = 221,
+    BOOR_ERROR = 221
     #  等待环境
-    WAIT_ENV = 23,
+    WAIT_ENV = 23
     #  等待环境超时
-    WAIT_ENV_TIME_OUT = 24,
+    WAIT_ENV_TIME_OUT = 24
     #  代理配置异常
-    PROXY_ERROR = 25,
+    PROXY_ERROR = 25
     #  等待机位空闲
-    PC_WAIT_SLOT = 26,
+    PC_WAIT_SLOT = 26
     #  已向设备推送执行指令
-    PC_HAS_SEND = 3,
+    PC_HAS_SEND = 3
     #  脚本正在执行中
-    DEVICE_EXE = 5,
+    DEVICE_EXE = 5
     #  脚本执行完成
-    DEVICE_FINISH = 7,
+    DEVICE_FINISH = 7
     #  脚本执行异常
     DEVICE_EXE_ERROR = 9
 
@@ -83,7 +83,8 @@ class ScriptProject:
                                            'update_count',
                                            'git_url',
                                            'zip_md5',
-                                           'update_note_current'])
+                                           'update_note_current',
+                                           'manifest'])
 
     def __init__(self, *args):
         self.project = ScriptProject._base_project(*args)
