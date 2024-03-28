@@ -83,13 +83,17 @@ async def _distb_task():
 @task.route("/query", methods=["POST"])
 async def _query_task():
     req_json = await request.get_json()
-    ret_task = await task_manager.query_all_task(
+    ret_task, ct = await task_manager.query_all_task(
+        box_ids=req_json["box_ids"],
         per_page=req_json["per_page"],
         page_index=req_json["page_index"],
         task_status_code=req_json.get("task_status_code"),  # 如果提交了此参数则指定
         device_id=req_json.get("device_id")  # 如果提交了此参数则指定
     )
-    return json.dumps(ret_task, cls=DbTypeEncoder)
+    return json.dumps({
+        "total": ct,
+        "tasks": ret_task
+    }, cls=DbTypeEncoder)
 
 
 # [前端/PC/手机]脚本运行完毕后, 请求这个接口更新任务状态

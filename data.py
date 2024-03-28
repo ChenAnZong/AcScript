@@ -86,7 +86,7 @@ class ScriptTaskManager:
         except Exception as e:
             return ActionRet(False, f"更新任务状态失败, 错误原因: {repr(e)}")
 
-    async def query_all_task(self, per_page: int = 10, page_index: int = 1, task_status_code: int = None,
+    async def query_all_task(self, box_ids: [str], per_page: int = 10, page_index: int = 1, task_status_code: int = None,
                              device_id: str = None):
         where_sql = ""
         # 指定任务类型筛选
@@ -99,11 +99,23 @@ class ScriptTaskManager:
             else:
                 where_sql = f"WHERE device_id={device_id}"
 
-        sql = f"SELECT * FROM Task ORDER BY date_update DESC LIMIT {int(per_page)} " \
-              f"OFFSET {(int(page_index) - 1) * (int(per_page))} {where_sql};"
+        if "WHERE" not in where_sql:
+            where_sql += " WHERE "
+        else:
+            where_sql += " AND "
+        where_sql += f"""({' OR '.join([f'box_id = "{i}"' for i in box_ids])})"""
+
+        sql = f"SELECT * FROM Task {where_sql} ORDER BY date_update DESC LIMIT {int(per_page)} " \
+              f"OFFSET {(int(page_index) - 1) * (int(per_page))};"
+
         cur: Cursor = await self.db.execute(sql)
         alr = await cur.fetchall()
-        return ScriptTask.db_rows_to_task(alr)
+        # print("查询", sql)
+        sql_query_count = f"SELECT COUNT(*) AS total FROM Task {where_sql};"
+        cur: Cursor = await self.db.execute(sql_query_count)
+        ct = await cur.fetchone()
+        # print("查询条数:", ct)
+        return (ScriptTask.db_rows_to_task(alr), ct[0])
 
     async def get_task_params(self, task_unique_id: str) -> str:
         a = await self.db.execute(
