@@ -11,7 +11,7 @@ class Config:
 
 class ServerAPP:
     cfg = Config()
-    app = Quart(__name__, static_folder='dist')
+    app = Quart(__name__, static_folder=r'dist/assets', template_folder='dist')
     app.register_blueprint(blueprint=blueprint_project)
     app.register_blueprint(blueprint=blueprint_task)
 

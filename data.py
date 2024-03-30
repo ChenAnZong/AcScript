@@ -4,8 +4,13 @@ from model import ActionRet, ScriptTask, ScriptProject, TaskStatus
 from typing import Union, Tuple
 import asyncio
 import uuid
+import sys
 from aiosqlite.cursor import Cursor
 from util import ts
+
+# 放在
+db_file = "/www/wwwroot/43.224.152.122/data.db" if sys.platform != "win32" \
+              else os.path.join(os.path.dirname(__file__), 'sqlite', 'data.db')
 
 
 class ScriptTaskManager:
@@ -14,7 +19,7 @@ class ScriptTaskManager:
 
     async def init(self):
         self.db = await aiosqlite.connect(
-            os.path.join(os.path.dirname(__file__), 'sqlite', 'data.db'),
+            db_file,
             timeout=20,
             check_same_thread=True)
         self.db.text_factory = lambda b: b.decode(errors='ignore')
@@ -152,7 +157,7 @@ class ProjectManager:
 
     async def init(self):
         self.db = await aiosqlite.connect(
-            os.path.join(os.path.dirname(__file__), 'sqlite', 'data.db'),
+            db_file,
             timeout=20,
             check_same_thread=True)
         self.db.text_factory = lambda b: b.decode(errors='ignore')

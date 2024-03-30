@@ -10,15 +10,19 @@ from model import ActionRet, DbTypeEncoder, ScriptProject
 from util import md5_file, ts
 from log import Logger
 
-project = Blueprint("project", import_name=__name__, url_prefix="/project")
+project = Blueprint("project", import_name=__name__, url_prefix="/project", static_folder="../dist/assets")
 project_man = ProjectManager()
 loger = Logger.logger
 
 
-# [前端]此处后面返回前端的网页index.html; 请求地址为 http://127.0.0.1:5031/project/
-@project.route("/", methods=["GET"])
+@project.route("/")
 async def _index():
-    return ts()
+    return await render_template("index.html")
+
+
+@project.route("/assets/<file>")
+async def _asset(file):
+    return await send_file(os.path.join(project.static_folder, file))
 
 
 # [前端]请求地址为 http://127.0.0.1:5031/project/create
