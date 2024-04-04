@@ -52,6 +52,7 @@ class Task:
         # }
         self.ret_json = ret_json
         self.task_id = ret_json["uuid"]
+        self.task_action = ret_json["action"] # 是个整数
         self.params_json = ret_json["task_params_json"]
         self.params = json.loads(self.params_json)
         self.update_task_status(TaskStatus.DEVICE_EXE, "手机成功拉取任务参数")
@@ -72,6 +73,20 @@ if __name__ == "__main__":
     task = Task()
     print("成功获取到运行参数")
     print("正在运行脚本....", task.params)    # 输出 正在运行脚本.... {'aaaa': 6}
+
+
+    class TaskAction(Enum):
+        """
+        以下常量值 需要使用复制即可; 如果新增状态, 不会修改已有的数字值
+        """
+        #  修改昵称
+        CHANGE_NICK = 1
+        #  修改头像
+        CHANGE_AVATAR = 2
+
+    # task.task_action = 2
+    if TaskAction(task.task_action) is TaskAction.CHANGE_AVATAR:
+        print("执行改头像")
 
     # 如果脚本运行异常
     task.update_task_status(TaskStatus.DEVICE_EXE_ERROR, "执行错误, 抖音账号未登录")

@@ -1,13 +1,11 @@
 import os
 import json
-from quart import request, Quart, Blueprint, send_file, redirect, abort, websocket, send_from_directory, \
-    make_response, \
-    render_template, stream_with_context, Response
+from quart import request, Blueprint, send_file, render_template, Response
 from quart.datastructures import FileStorage
 
-from data import ProjectManager
-from model import ActionRet, DbTypeEncoder, ScriptProject
-from util import md5_file, ts
+from data.man_project import ProjectManager
+from data.model import ActionRet, DbTypeEncoder, ScriptProject
+from util import md5_file
 from log import Logger
 
 project = Blueprint("project", import_name=__name__, url_prefix="/project", static_folder="../dist/assets")
@@ -76,7 +74,7 @@ async def _list_project():
 @project.route("/project_info", methods=["GET"])
 async def _project_info():
     project_id = int(request.args.get("id"))
-    return json.dumps(await project_man.query_one_project(project_id))
+    return json.dumps(await project_man.query_one_project(project_id), cls=DbTypeEncoder)
 
 
 # [前端]

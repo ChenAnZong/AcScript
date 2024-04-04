@@ -9,7 +9,6 @@ from werkzeug.wsgi import FileWrapper
 from typing import Dict
 import psutil
 import sys
-from log import server_logger
 process_pid = set()
 process_pid.add(os.getpid())
 
@@ -23,20 +22,20 @@ def daemonize():
     os.setsid()
     pid2 = os.fork()
     if pid2:
-        server_logger.info("守护进程启动成功： PID={}".format(os.getpid()))
+        print("守护进程启动成功： PID={}".format(os.getpid()))
         # 守护进程，判断进程是否挂掉
         while True:
             time.sleep(10)
             if psutil.pid_exists(pid2):
                 continue
             else:
-                server_logger.warning("观察到工作进程已死亡，重启进程！~")
+                print("观察到工作进程已死亡，重启进程！~")
                 reboot_application()
                 exit()
     else:
         process_pid.add(os.getppid())
         process_pid.add(os.getpid())
-        server_logger.info("工作进程启动完成！！DAEMON PPID={} PID={}".format(os.getppid(), os.getpid()))
+        print("工作进程启动完成！！DAEMON PPID={} PID={}".format(os.getppid(), os.getpid()))
 
     sys.stdout.flush()
     sys.stderr.flush()
@@ -45,7 +44,7 @@ def daemonize():
         os.dup2(read_null.fileno(), sys.stdin.fileno())
         os.dup2(write_null.fileno(), sys.stdout.fileno())
         os.dup2(write_null.fileno(), sys.stderr.fileno())
-    server_logger.info("开始执行工作代码")
+    print("开始执行工作代码")
 
 
 def clean():
@@ -54,7 +53,7 @@ def clean():
     """
     py_process_name = os.path.basename(sys.executable)
     py_code_file_name = os.path.basename(__file__)
-    server_logger.info(f"当前运行: {py_process_name} {py_code_file_name}")
+    print(f"当前运行: {py_process_name} {py_code_file_name}")
     for p in psutil.process_iter():
         # kill another me
         try:
@@ -64,13 +63,13 @@ def clean():
         except psutil.ZombieProcess:
             continue
         if "python" in str(process_cmdline):
-            server_logger.debug("发现其它python进程:" + str(process_cmdline))
+            print("发现其它python进程:" + str(process_cmdline))
             if py_process_name in str(process_cmdline) and py_code_file_name in str(process_cmdline):
                 if p.pid not in process_pid:
                     p.kill()
-                    server_logger.error("已有启动中的实例，结束： " + str(p))
+                    print("已有启动中的实例，结束： " + str(p))
                 else:
-                    server_logger.info("当前python进程：" + str(p))
+                    print("当前python进程：" + str(p))
 
 
 if sys.platform != "win32":
@@ -79,6 +78,7 @@ if sys.platform != "win32":
         daemonize()
 
 
+from log import server_logger
 from quart_app_entry import ServerAPP
 app = ServerAPP.app
 st = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
@@ -96,6 +96,7 @@ async def process_res(r):
     # r.headers.add("Server-Version", "2024.3")
     r.headers.add("Access-Control-Allow-Origin", "*")
     r.headers.add("Access-Control-Allow-Credentials", "true")
+    r.headers.add("Access-Control-Allow-Private-Network", "true")
     # r.headers.add("Access-Control-Max-Age", str(1728000))
     # r.headers.add("Cache-Control", "no-cache")
     # r.headers.add("Access-Control-Allow-Methods", "GET,HEAD,OPTIONS,POST,PUT")
@@ -117,17 +118,51 @@ async def _status():
     })
 
 
-@app.route("/<path>")
-async def _index(path):
+@app.route("/task_manage")
+async def _index_task():
     return await render_template("index.html")
 
+
+@app.route("/project_manage")
+async def _index_project():
+    return await render_template("index.html")
+
+
+@app.route("/proxy", methods=["GET"])
+async def _proxy():
+    cmd = "nohup /usr/local/bin/proxy --hostname 0.0.0.0 --basic-auth juzhen:yyds --port 8081&"
+    is_running = False
+    ret = ""
+    for p in psutil.process_iter():
+        if "local/bin/proxy" in str(p.cmdline()):
+            is_running = True
+            ret += f"exe: {p.exe()} cmdline: {p.cmdline()} status: {p.status()} create_time: {p.create_time()}<br>"
+    if not is_running:
+        ret = str(os.system(cmd))
+    return ret
+
+
+@app.route("/update-dist", methods=["POST"])
+async def _post_file():
+    """
+    服务器接收文件并写出
+    :return:
+    """
+    file = (await request.files)['file']
+    server_logger.info("Update-dist-file-archive:" + file.filename)
+    await file.save(file.filename)
+    extract_to = r"dist"
+    import shutil
+    shutil.rmtree(extract_to, ignore_errors=True)
+    shutil.unpack_archive(file.filename, extract_to)
+    os.remove(file.filename)
+    return file.filename
 
 
 def reboot_application():
     new_pid = os.spawnv(os.P_NOWAITO, sys.executable, sys.argv[1:])
     server_logger.info("马上重启进程，当前进程pid={} 新进程pid={}".format(os.getgid(), new_pid))
     exit(0)
-
 
 
 while True:

@@ -1,10 +1,8 @@
 import logging
 import json
-from quart import request, Quart, Blueprint, send_file, redirect, abort, websocket, send_from_directory, \
-    make_response, \
-    Response
-from data import ScriptTaskManager, ActionRet
-from model import DbTypeEncoder
+from quart import request, Blueprint, Response
+from data.man_task import ScriptTaskManager, ActionRet
+from data.model import DbTypeEncoder
 
 task = Blueprint("task", import_name=__name__, url_prefix="/task")
 task_manager = ScriptTaskManager()

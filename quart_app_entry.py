@@ -3,6 +3,7 @@ from quart import Quart
 from quart_cors import cors
 from export.blue_project import project as blueprint_project
 from export.blue_task import task as blueprint_task
+from export.blue_resource import res as blueprint_resource
 import logging
 
 
@@ -19,6 +20,8 @@ class ServerAPP:
     app = Quart(__name__, static_folder=r'dist/assets', template_folder='dist')
     app.register_blueprint(blueprint=cors(blueprint_project, **cors_settings))
     app.register_blueprint(blueprint=cors(blueprint_task, **cors_settings))
+    app.register_blueprint(blueprint=cors(blueprint_resource, **cors_settings))
+    app.config["TEMPLATES_AUTO_RELOAD"] = True
     app = cors(app, **cors_settings)
 
     @classmethod
