@@ -23,15 +23,7 @@ async def _create_task():
     }
     """
     req_json = await request.get_json()
-    ret: ActionRet = await task_manager.create_task(
-        box_id=req_json["box_id"],                  # 盒子硬件ID
-        device_id=req_json["device_id"],            # 安卓设备ID
-        task_app=req_json["task_app"],              # 任务app, 如抖音, 小红书, Tiktok
-        task_name=req_json["task_name"],            # 如更改头像, 发布视频
-        script_project_id=req_json["script_id"],    # 脚本工程ID
-        param_json=req_json["param_json"],          # 任务参数的json字符串, 脚本运行的时候需要使用
-        timing_execute=req_json["timing_execute"]   # 执行时间, 以秒为单位的时间戳 170xxx
-    )
+    ret: ActionRet = await task_manager.create_task(req_json)
     return ret.to_json()
 
 

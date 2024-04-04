@@ -56,20 +56,25 @@ class ScriptTaskManager:
             return ActionRet(False, f"未删除任何任务, 请确保任务ID正常")
         return ActionRet(True, f"成功删除任务, 条数:{cur.rowcount}")
 
-    async def create_task(self, box_id: str, device_id: str, script_project_id: int,
-                          task_app: str, task_name: str,
-                          param_json: str, timing_execute: str) -> ActionRet:
+    async def create_task(self, req_json: dict) -> ActionRet:
         try:
-            unique_id = str(uuid.uuid4())
-            await self.db.execute(
+            many_data = []
+            if not isinstance(req_json, (list, tuple)):
+                req_json = [req_json]
+            for arr in req_json:
+                many_data.append(
+                    (str(uuid.uuid4()), ts(), ts(), arr["box_id"], arr["device_id"], arr["script_id"],
+                     arr["task_app"], arr["task_name"], arr["param_json"], arr["timing_execute"],
+                     TaskStatus.CREATED.value, '新建任务')
+                )
+            await self.db.executemany(
                 "INSERT INTO Task (uuid, date_create, date_update, box_id, device_id, script_project_id, "
                 "task_app, task_name, task_params_json, timing_execute, status_code, status_desc) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (unique_id, ts(), ts(), box_id, device_id, script_project_id,
-                 task_app, task_name, param_json, timing_execute, TaskStatus.CREATED.value, '新建任务')
-            )
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", tuple(many_data))
             await self.db.commit()
-            return ActionRet(True, "新建任务成功")
+            ret = ActionRet(True, "新建任务成功")
+            ret.count = len(many_data)
+            return ret
         except aiosqlite.IntegrityError as e:
             if "UNIQUE constraint failed" in repr(e):
                 pass
