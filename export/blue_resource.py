@@ -75,3 +75,10 @@ async def _delete_group():
     ret = await res_man.delete_group(req_json)
     return ret.to_json()
 
+
+@res.route("/search_from_group", methods=["POST"])
+async def _search_from_group():
+    req_json = await request.get_json()
+    ret = await res_man.delete_group(req_json)
+    return ret.to_json()
+

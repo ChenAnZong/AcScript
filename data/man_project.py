@@ -67,7 +67,7 @@ class ProjectManager:
                 sql = f"UPDATE Project SET date_update = ?, version_name = ?, git_url = ?, zip_md5 = ? ," \
                       f"update_note_current = ? WHERE id={project_id};"
                 sql_args = (ts(), version_name, git_url, md5, update_note)
-                await self.db.execute("UPDATE Project SET update_count = update_count + 1;")
+                await self.db.execute(f"UPDATE Project SET update_count = update_count + 1 WHERE id={project_id};")
             else:
                 sql = f"UPDATE Project SET date_update = ?, version_name = ?, git_url = ? ," \
                       f"update_note_current = ? WHERE id={project_id}; "
@@ -106,10 +106,10 @@ class ProjectManager:
         o = await cur.fetchone()
         return ScriptProject.create_from_db_rows(o)
 
-    async def update_manifest(self, project_id:int, manifest: str) -> ActionRet:
+    async def update_manifest(self, project_id: int, manifest: str) -> ActionRet:
         try:
             sql = f"UPDATE Project SET date_update = ?, manifest = ? WHERE id={project_id};"
-            cur = await self.db.execute(sql, (ts(), manifest, ))
+            cur = await self.db.execute(sql, (ts(), manifest,))
             await self.db.commit()
             return ActionRet(True, f"更新{cur.rowcount}条项目数据")
         except Exception as e:

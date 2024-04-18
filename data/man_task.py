@@ -56,6 +56,18 @@ class ScriptTaskManager:
             return ActionRet(False, f"未删除任何任务, 请确保任务ID正常")
         return ActionRet(True, f"成功删除任务, 条数:{cur.rowcount}")
 
+    async def retry_task(self, task_uuid: Union[Tuple[str], str]) -> ActionRet:
+        if isinstance(task_uuid, (list, tuple,)):
+            cur = await self.db.executemany(
+                f"UPDATE Task SET status_code = 1, status_desc = '等待重试' WHERE uuid = ? ", [(c,) for c in task_uuid])
+        else:
+            cur = await self.db.execute(
+                f"UPDATE Task SET status_code = 1, status_desc = '等待重试' WHERE uuid='{task_uuid}'")
+        await self.db.commit()
+        if cur.rowcount == 0:
+            return ActionRet(False, f"未查找到数据进行重试")
+        return ActionRet(True, f"修改任务重试, 条数:{cur.rowcount}")
+
     async def create_task(self, req_json: dict) -> ActionRet:
         try:
             many_data = []
@@ -94,7 +106,8 @@ class ScriptTaskManager:
         except Exception as e:
             return ActionRet(False, f"更新任务状态失败, 错误原因: {repr(e)}")
 
-    async def query_all_task(self, box_ids: [str], per_page: int = 10, page_index: int = 1, task_status_code: int = None,
+    async def query_all_task(self, box_ids: [str], per_page: int = 10, page_index: int = 1,
+                             task_status_code: int = None,
                              device_id: str = None):
         where_sql = ""
         # 指定任务类型筛选

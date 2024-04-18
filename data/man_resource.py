@@ -31,18 +31,32 @@ class ResourceManager:
                                      client_id TEXT NOT NULL,
                                      date_create INTEGER NOT NULL,
                                      date_update INTEGER,
+                                     count INTEGER,
                                      tag TEXT
                                      );'''
 
         sqlite_create_res_data = '''CREATE TABLE res_data (
                                          id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                         group_id TEXT NOT NULL,
+                                         group_id INTEGER NOT NULL,
                                          data TEXT NOT NULL,
                                          used_count INTEGER NOT NULL,
                                          date_last_used INTEGER,
                                          note TEXT
                                          );'''
         try:
+            await self.db.execute("""
+CREATE TRIGGER IF NOT EXISTS update_res_group_count
+AFTER DELETE ON res_data
+BEGIN
+    UPDATE res_group
+    SET count = (
+        SELECT COUNT(*)
+        FROM res_data
+        WHERE group_id = OLD.group_id
+    )
+    WHERE id = OLD.group_id;
+END;
+            """)
             await self.db.execute(sqlite_create_res_group)
             await self.db.execute(sqlite_create_res_data)
             await self.db.commit()
@@ -76,12 +90,13 @@ class ResourceManager:
 
     async def update_data(self, req_json: dict) -> ActionRet:
         try:
-            group_id = req_json["group_id"]
+            group_id = int(req_json["group_id"])
             data = req_json["data"]
             ld = tuple([(group_id, d["content"], 0, 0, d["note"]) for d in data])
-            cur = await self.db.executemany(
+            await self.db.executemany(
                 f"INSERT INTO res_data (group_id, data, used_count, date_last_used, note) VALUES "
                 f"(?, ?, ?, ?, ?);", ld)
+            await self._update_group_count(group_id)
             await self.db.commit()
             ret = ActionRet(True, f"上传资源数据成功, 共{len(ld)}条")
             return ret
@@ -91,6 +106,18 @@ class ResourceManager:
             else:
                 print("数据库插入错误", repr(e))
             return ActionRet(False, f"错误原因: {repr(e)}")
+
+    async def _update_group_count(self, group_id:int):
+        sql = f"""
+UPDATE res_group
+SET count = (
+    SELECT COUNT(*)
+    FROM res_data
+    WHERE group_id = {group_id}
+)
+WHERE id = {group_id};
+"""
+        await self.db.execute(sql)
 
     async def query_group(self, req_json: dict) -> ActionRet:
         try:
@@ -125,18 +152,29 @@ class ResourceManager:
             group_id = req_json["group_id"]  # 每页多少个行
             per_page = req_json["per_page"]  # 每页多少个行
             page_index = int(req_json["page_index"])  # 当前第几页, 从1开始
+            like_data = req_json.get("match_data", None)
+            like_note = req_json.get("match_note", None)
+            # sort_by = req_json.get("sort_by", "date_last_used")
+            # sort_type = req_json.get("sort_type", "DESC")
+            like_sql = ""
+            if like_data is not None:
+                like_sql += f"AND data LIKE '%{like_data}%' "
+            if like_note is not None:
+                like_sql += f"AND note LIKE '%{like_note}%' "
+
             if page_index < 1:
                 page_index = 1
-            sql = f"SELECT * FROM res_data WHERE group_id = {group_id} ORDER BY date_last_used DESC, used_count " \
+            sql = f"SELECT * FROM res_data WHERE group_id = {group_id} {like_sql} ORDER BY date_last_used DESC, used_count " \
                   f"LIMIT {int(per_page)} " \
                   f"OFFSET {(int(page_index) - 1) * (int(per_page))};"
+            print(sql)
             cur: Cursor = await self.db.execute(sql)
             alr = await cur.fetchall()
             ret = ActionRet(True, f"查询成功, 共{len(list(alr))}条")
             ret.data = ResourceData.create_from_db_rows(alr)
             ret.count = len(list(alr))
 
-            sql_query_count = f"SELECT COUNT(*) FROM res_data WHERE group_id = {group_id};"
+            sql_query_count = f"SELECT COUNT(*) FROM res_data WHERE group_id = {group_id} {like_sql};"
             cur: Cursor = await self.db.execute(sql_query_count)
             ct = await cur.fetchone()
             ret.total = ct[0]
@@ -183,7 +221,7 @@ class ResourceManager:
 
     async def delete_data(self, req_json):
         try:
-            uld = [(i,) for i in req_json]
+            uld = [(i,) for i in req_json["ids"]]
             print(uld)
             sql = f"DELETE FROM res_data WHERE id=?;"
             cur: Cursor = await self.db.executemany(sql, uld)
@@ -195,7 +233,7 @@ class ResourceManager:
 
     async def delete_group(self, req_json):
         try:
-            uld = [(i,) for i in req_json]
+            uld = [(i,) for i in req_json["ids"]]
             print("提交", uld)
             sql1 = f"DELETE FROM res_group WHERE id = ?;"
             sql2 = f"DELETE FROM res_data WHERE group_id = ?;"

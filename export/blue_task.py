@@ -37,6 +37,16 @@ async def _delete_task():
     return ret.to_json()
 
 
+# [前端]设置任务重试
+@task.route("/retry", methods=["POST"])
+async def _retry_task():
+    req_json = await request.get_json()
+    ret = await task_manager.retry_task(
+        task_uuid=req_json["task_unique_id"]  # 可以为数组, 或者字符串均可
+    )
+    return ret.to_json()
+
+
 # [待用]查询任务的具体参数, 这个暂时用不上
 @task.route("/task_params", methods=["GET"])
 async def _params_from_task():

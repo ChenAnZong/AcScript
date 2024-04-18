@@ -95,6 +95,7 @@ class ResourceGroup(DbDataModel):
                                             'client_id',
                                             'date_create',
                                             'date_update',
+                                            'count',
                                             'tag'])
 
 

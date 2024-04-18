@@ -1,3 +1,4 @@
+import logging
 import traceback
 import json
 import time
@@ -120,6 +121,12 @@ async def _status():
 
 @app.route("/task_manage")
 async def _index_task():
+    # logging.info("URL" + request.url)
+    return await render_template("index.html")
+
+
+@app.route("/resource_manage")
+async def _index_res():
     return await render_template("index.html")
 
 
@@ -157,6 +164,11 @@ async def _post_file():
     shutil.unpack_archive(file.filename, extract_to)
     os.remove(file.filename)
     return file.filename
+
+
+@app.route("/ip", methods=["GET"])
+async def _ip():
+    return str(request.remote_addr)
 
 
 def reboot_application():
