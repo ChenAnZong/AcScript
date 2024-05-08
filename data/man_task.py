@@ -155,9 +155,14 @@ class ScriptTaskManager:
         return ScriptTask.db_rows_to_task(f)
 
     async def fetch_pc_task(self, box_id: str) -> ScriptTask:
+        """
+        一个机位最大拉取4个任务同时!
+        :param box_id:
+        :return:
+        """
         cur: Cursor = await self.db.execute(
             f"SELECT * FROM Task WHERE box_id='{box_id}' AND status_code={TaskStatus.CREATED.value} "
-            f"AND timing_execute < {ts()} ORDER BY timing_execute DESC;"
+            f"AND timing_execute < {ts()} ORDER BY timing_execute DESC LIMIT 4;"
         )
         f = await cur.fetchall()
         return ScriptTask.db_rows_to_task(f)

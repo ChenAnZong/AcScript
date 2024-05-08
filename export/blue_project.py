@@ -1,8 +1,10 @@
 import os
 import json
+import aiofiles
 from quart import request, Blueprint, send_file, render_template, Response
 from quart.datastructures import FileStorage
 
+import util
 from data.man_project import ProjectManager
 from data.model import ActionRet, DbTypeEncoder, ScriptProject
 from util import md5_file
@@ -108,6 +110,8 @@ async def _update_project():
         rn = os.path.join("project_zip", md5 + ".zip")
         if not os.path.exists(rn):
             os.rename(local_file, rn)
+    async with aiofiles.open(os.path.join("project_zip", f"{project_id}_update_history.txt"), mode="a+") as fw:
+        await fw.write(f"{util.format_time()}\t{update_version}\t{update_note}")
     ret = await project_man.update_project(project_id, md5, md5 is not None, update_version, git_url, update_note)
     return ret.to_json()
 
@@ -128,6 +132,16 @@ async def _download_project():
         return await send_file(local, as_attachment=True)
     else:
         return Response(response="文件不存在", status=400)
+
+
+@project.route("/get_update_history", methods=["GET", "POST"])
+async def _update_history():
+    project_id = request.args.get("id")
+    path = os.path.join("project_zip", f"{project_id}_update_history.txt")
+    if os.path.exists(path):
+        return "暂无更新日志,请督促技术员努力更新吧~!"
+    async with aiofiles.open(path, mode="r+") as fr:
+        return await fr.read()
 
 
 @project.route("/update_manifest", methods=["POST"])

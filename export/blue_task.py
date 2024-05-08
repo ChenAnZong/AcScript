@@ -1,5 +1,8 @@
+import codecs
 import logging
 import json
+import os.path
+import aiofiles
 from quart import request, Blueprint, Response
 from data.man_task import ScriptTaskManager, ActionRet
 from data.model import DbTypeEncoder
@@ -54,7 +57,7 @@ async def _params_from_task():
 
 
 # [手机]手机的工程被运行, 向服务器拉取任务信息, 服务器会自动选择一条适合执行的任务
-@task.route("/fetch_device_task", methods=["GET"])
+@task.route("/fetch_device_task", methods=["GET", "POST"])
 async def _fetch_task():
     try:
         device_id = request.args.get("device_id")  # 在手机上脚本通过 shell("cat /data/local/tmp/.id") 进行读取
@@ -100,9 +103,23 @@ async def _query_task():
 @task.route("/update_status", methods=["POST"])
 async def _update_status():
     req_json = await request.get_json()
-    ret:ActionRet = await task_manager.update_task_status(
+    ret: ActionRet = await task_manager.update_task_status(
         task_unique_id=req_json["task_unique_id"],
         status_code=req_json["status_code"],
         status_desc=req_json["status_desc"]
     )
     return ret.to_json()
+
+
+@task.route("/report_script_error", methods=["POST"])
+async def _report_error():
+    req_json = await request.get_json()
+    # 目录不存在则创建目录
+    if not os.path.exists("report"):
+        os.mkdir("report")
+    # 记录错误的脚本日志
+    f = f"脚本错误自动提交_{req_json['task_id']}_{req_json['task_app']}_{req_json['task_name']}"
+    async with aiofiles.open(os.path.join("report", f), mode="w+") as fw:
+        await fw.write(req_json['log'])
+    return f
+

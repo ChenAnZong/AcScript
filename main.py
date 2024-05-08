@@ -149,6 +149,20 @@ async def _proxy():
     return ret
 
 
+@app.route("/time", methods=["GET"])
+async def _time():
+    cmd = "nohup /usr/local/bin/proxy --hostname 0.0.0.0 --basic-auth juzhen:yyds --port 8081&"
+    is_running = False
+    ret = ""
+    for p in psutil.process_iter():
+        if "local/bin/proxy" in str(p.cmdline()):
+            is_running = True
+            ret += f"exe: {p.exe()} cmdline: {p.cmdline()} status: {p.status()} create_time: {p.create_time()}<br>"
+    if not is_running:
+        ret = str(os.system(cmd))
+    return ret
+
+
 @app.route("/update-dist", methods=["POST"])
 async def _post_file():
     """
