@@ -1,18 +1,16 @@
 import os
 import json
 import aiofiles
-from quart import request, Blueprint, send_file, render_template, Response
+from quart import request, Blueprint, send_file, render_template, Response, logging
 from quart.datastructures import FileStorage
 
 import util
 from data.man_project import ProjectManager
 from data.model import ActionRet, DbTypeEncoder, ScriptProject
 from util import md5_file
-from log import Logger
 
 project = Blueprint("project", import_name=__name__, url_prefix="/project", static_folder="../dist/assets")
 project_man = ProjectManager()
-loger = Logger.logger
 
 
 @project.route("/")
@@ -68,7 +66,7 @@ async def _list_project():
         return json.dumps(ret, cls=DbTypeEncoder)
     except Exception as e:
         print(repr(e))
-        loger.error("查询工程错误", stack_info=True)
+        logging.getLogger().error("查询工程错误", stack_info=True)
         return json.dumps([])
 
 
@@ -134,11 +132,12 @@ async def _download_project():
         return Response(response="文件不存在", status=400)
 
 
+# http://43.224.152.122:5031/project/get_update_history?id=48
 @project.route("/get_update_history", methods=["GET", "POST"])
 async def _update_history():
     project_id = request.args.get("id")
     path = os.path.join("project_zip", f"{project_id}_update_history.txt")
-    if os.path.exists(path):
+    if not os.path.exists(path):
         return "暂无更新日志,请督促技术员努力更新吧~!"
     async with aiofiles.open(path, mode="r+") as fr:
         return await fr.read()

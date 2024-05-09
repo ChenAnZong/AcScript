@@ -6,10 +6,12 @@ import os
 import sys
 from quart import request, Response, Quart, json, send_file, redirect, abort, websocket, send_from_directory, make_response, \
     render_template, stream_with_context
-from werkzeug.wsgi import FileWrapper
-from typing import Dict
+from quart.datastructures import FileStorage
 import psutil
 import sys
+
+import util
+
 process_pid = set()
 process_pid.add(os.getpid())
 
@@ -79,7 +81,6 @@ if sys.platform != "win32":
         daemonize()
 
 
-from log import server_logger
 from quart_app_entry import ServerAPP
 app = ServerAPP.app
 st = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
@@ -170,7 +171,7 @@ async def _post_file():
     :return:
     """
     file = (await request.files)['file']
-    server_logger.info("Update-dist-file-archive:" + file.filename)
+    print("Update-dist-file-archive:" + file.filename)
     await file.save(file.filename)
     extract_to = r"dist"
     import shutil
@@ -182,15 +183,47 @@ async def _post_file():
 
 @app.route("/ip", methods=["GET"])
 async def _ip():
+    loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict]
+    print("启动程序#日志打印：", loggers)
+    app.logger.debug(request.headers.get("User-Agent", ""))
     return str(request.remote_addr)
+
+
+@app.route("/pc_log_report", methods=["POST"])
+async def _pc_log_report():
+    form = await request.form
+    files = await request.files
+    log_file_name = f"{util.format_time().replace(':', '-')}_{form['pc_code']}_{form['login_user']}_{form['os_version'].replace(' ', '#')}_{form['client_version']}_{form['cpu_name'].replace(' ', '')}.zip"
+    log_zip_fs: FileStorage = files.get("log_zip")
+    # print("文件名:", log_file_name)
+    # print("文件1:", files.get("log_zip"))
+    # 目录不存在则创建目录
+    if not os.path.exists("report"):
+        os.mkdir("report")
+    await log_zip_fs.save(destination=os.path.join("report", log_file_name))
+    # f.get()
+    # 返回成功的话客户端就删除日志
+    return "上报success|" + log_file_name
+
+
+@app.errorhandler(404)
+def error_handler_404(error):
+    app.logger.error("请求404出错", error)
+    return redirect("/ip")
+
+
+@app.errorhandler(500)
+def error_handler_500(error):
+    app.logger.error("请求500出错", error)
+    return "服务器500出错|请联系开发者处理 TEL:13066312388", 500
 
 
 def reboot_application():
     new_pid = os.spawnv(os.P_NOWAITO, sys.executable, sys.argv[1:])
-    server_logger.info("马上重启进程，当前进程pid={} 新进程pid={}".format(os.getgid(), new_pid))
+    print("马上重启进程，当前进程pid={} 新进程pid={}".format(os.getgid(), new_pid))
     exit(0)
 
 
 while True:
-    server_logger.info(">>>>>>>> {0}".format(sys.argv))
+    print(">>>>>>>> {0}".format(sys.argv))
     ServerAPP.start()

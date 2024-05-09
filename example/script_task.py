@@ -55,7 +55,7 @@ class Task:
         self.task_action = ret_json["action"] # 是个整数
         self.params_json = ret_json["task_params_json"]
         self.params = json.loads(self.params_json)
-        self.update_task_status(TaskStatus.DEVICE_EXE, "手机成功拉取任务参数")
+        self.update_task_status(TaskStatus.DEVICE_EXE, "正在执行脚本")
 
     def update_task_status(self, st: TaskStatus, desc: str):
         rj = {

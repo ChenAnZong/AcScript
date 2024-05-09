@@ -1,5 +1,7 @@
 import logging
+from quart.logging import default_handler
 from logging.handlers import RotatingFileHandler
+from logging import Logger
 
 
 class CustomFormatter(logging.Formatter):
@@ -29,21 +31,21 @@ class CustomFormatter(logging.Formatter):
         return formatter.format(record)
 
 
-class Logger:
-    logger = logging.getLogger("DEFAULT")
-    logging.basicConfig(level=logging.INFO, datefmt='%a, %d %b %Y %H:%M:%S',
-                        format='%(asctime)s-行%(lineno)d|线%(thread)d ⇛ %(message)s')  # logging.basicConfig函数对日志的输出格式及方式做相关配置
-    logger.setLevel(logging.DEBUG)
-    stdout_handler = logging.StreamHandler()
-    file_handler = RotatingFileHandler("server.log", mode='a', maxBytes=100 * 1024 * 1024, backupCount=1,
-                                       encoding="utf-8",
-                                       delay=True)
+class MyLogger:
+    @staticmethod
+    def setup(logger: Logger):
+        # logger = logging.getLogger("DEFAULT")
+        logger.removeHandler(default_handler)
+        logging.basicConfig(level=logging.INFO, datefmt='%a, %d %b %Y %H:%M:%S',
+                            format='%(asctime)s-行%(lineno)d ⇛ %(message)s')  # logging.basicConfig函数对日志的输出格式及方式做相关配置
+        logger.setLevel(logging.DEBUG)
+        stdout_handler = logging.StreamHandler()
+        file_handler = RotatingFileHandler("server.log", mode='a', maxBytes=100 * 1024 * 1024, backupCount=1,
+                                           encoding="utf-8",
+                                           delay=True)
 
-    file_handler.setFormatter(logging.Formatter("%(asctime)s-[%(lineno)d] - %(message)s"))
-    logger.addHandler(file_handler)
-    fmt = '%(asctime)s | %(levelname)1s | %(message)s'
-    stdout_handler.setFormatter(CustomFormatter(fmt))
-    logger.addHandler(stdout_handler)
-
-
-server_logger = Logger.logger
+        file_handler.setFormatter(logging.Formatter("%(asctime)s-[%(lineno)d] - %(message)s"))
+        logger.addHandler(file_handler)
+        fmt = '%(asctime)s | %(levelname)1s | %(message)s'
+        stdout_handler.setFormatter(CustomFormatter(fmt))
+        logger.addHandler(stdout_handler)

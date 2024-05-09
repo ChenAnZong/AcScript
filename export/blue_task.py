@@ -4,6 +4,8 @@ import json
 import os.path
 import aiofiles
 from quart import request, Blueprint, Response
+from quart.datastructures import FileStorage
+
 from data.man_task import ScriptTaskManager, ActionRet
 from data.model import DbTypeEncoder
 
@@ -113,13 +115,21 @@ async def _update_status():
 
 @task.route("/report_script_error", methods=["POST"])
 async def _report_error():
-    req_json = await request.get_json()
+    req_json = await request.form
+    files = await request.files
     # 目录不存在则创建目录
     if not os.path.exists("report"):
         os.mkdir("report")
     # 记录错误的脚本日志
-    f = f"脚本错误自动提交_{req_json['task_id']}_{req_json['task_app']}_{req_json['task_name']}"
-    async with aiofiles.open(os.path.join("report", f), mode="w+") as fw:
+    name = f"脚本错误自动提交_{req_json['task_id']}_{req_json['task_app']}_{req_json['task_name']}"
+    log_file = os.path.join("report", name + ".log")
+    screen_file = os.path.join("report", name + ".png")
+    ui_dump_file = os.path.join("report", name + ".xml")
+    async with aiofiles.open(log_file, mode="a+") as fw:
         await fw.write(req_json['log'])
-    return f
+    s: FileStorage = files.get("screen")
+    await s.save(destination=screen_file)
+    x: FileStorage = files.get("ui_dump")
+    await x.save(destination=ui_dump_file)
+    return name
 
