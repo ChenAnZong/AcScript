@@ -1,19 +1,30 @@
+import codecs
 import logging
 import traceback
 import json
 import time
 import os
-import sys
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+
+import aiofiles
 from quart import request, Response, Quart, json, send_file, redirect, abort, websocket, send_from_directory, make_response, \
     render_template, stream_with_context
 from quart.datastructures import FileStorage
 import psutil
 import sys
-
 import util
+from other.mail_outlook import fetch_tk_code_and_verify, handle_check_email
+executor = ThreadPoolExecutor()
 
 process_pid = set()
 process_pid.add(os.getpid())
+
+
+async def run_blocking_task(func, *args):
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(executor, func, *args)
+    return result
 
 
 def daemonize():
@@ -185,8 +196,13 @@ async def _post_file():
 async def _ip():
     loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict]
     print("启动程序#日志打印：", loggers)
-    app.logger.debug(request.headers.get("User-Agent", ""))
     return str(request.remote_addr)
+
+
+@app.route("/theb", methods=["GET"])
+async def _theb_js():
+    async with aiofiles.open("thebai.js", mode="r+") as fr:
+        return await fr.read()
 
 
 @app.route("/pc_log_report", methods=["POST"])
@@ -206,16 +222,53 @@ async def _pc_log_report():
     return "上报success|" + log_file_name
 
 
+@app.route("/tk_outlook", methods=["POST"])
+async def _tk_outlook():
+    # 在主线程中调用异步函数来执行阻塞的同步调用
+    try:
+        rj = await request.get_json()
+        u = rj["username"]
+        p = rj["password"]
+        result = await asyncio.wait_for(fut=run_blocking_task(fetch_tk_code_and_verify, u, p), timeout=60)
+    except asyncio.TimeoutError:
+        result = "登录获取超时"
+    except Exception as e:
+        async with aiofiles.open("tk_error.log", mode="a+") as fw:
+            await fw.write(repr(e) + "\n")
+            await fw.write(traceback.format_exc() + "\n")
+            await fw.flush()
+        result = traceback.format_exc()
+    return result
+
+
+@app.route("/email_check", methods=["POST"])
+async def _tk_email_check():
+    # 在主线程中调用异步函数来执行阻塞的同步调用
+    try:
+        rj = await request.get_json()
+        et = rj["emails_text"]
+        result = await asyncio.wait_for(fut=run_blocking_task(handle_check_email, et), timeout=10*60)
+    except asyncio.TimeoutError:
+        result = "检测超时"
+    except Exception as e:
+        async with aiofiles.open("tk_error.log", mode="a+") as fw:
+            await fw.write(repr(e) + "\n")
+            await fw.write(traceback.format_exc() + "\n")
+            await fw.flush()
+        result = traceback.format_exc()
+    return result
+
+
 @app.errorhandler(404)
 def error_handler_404(error):
-    app.logger.error("请求404出错", error)
+    app.logger.error(f"请求404出错: {request.url} {request.headers.get('User-Agent, ''')}")
     return redirect("/ip")
 
 
 @app.errorhandler(500)
 def error_handler_500(error):
-    app.logger.error("请求500出错", error)
-    return "服务器500出错|请联系开发者处理 TEL:13066312388", 500
+    app.logger.error(f"请求500出错: {request.url} {error}")
+    return "服务器500出错\请联系开发者处理\ TEL:13066312388\n" + str(error), 500
 
 
 def reboot_application():

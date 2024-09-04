@@ -164,7 +164,7 @@ WHERE id = {group_id};
 
             if page_index < 1:
                 page_index = 1
-            sql = f"SELECT * FROM res_data WHERE group_id = {group_id} {like_sql} ORDER BY date_last_used DESC, used_count " \
+            sql = f"SELECT * FROM res_data WHERE group_id = {group_id} {like_sql} ORDER BY used_count ASC " \
                   f"LIMIT {int(per_page)} " \
                   f"OFFSET {(int(page_index) - 1) * (int(per_page))};"
             print(sql)
@@ -198,8 +198,8 @@ WHERE id = {group_id};
 
     async def update_used_count(self, req_json: dict) -> ActionRet:
         try:
-            uld = tuple([(d["count"], d["id"]) for d in req_json])
-            sql = "UPDATE res_data SET used_count = ?  WHERE id = ?;"
+            uld = tuple([(d["count"], ts(), d["id"]) for d in req_json["data"]])
+            sql = "UPDATE res_data SET used_count = ?, date_last_used = ? WHERE id = ?;"
             cur: Cursor = await self.db.executemany(sql, uld)
             await self.db.commit()
             ret = ActionRet(True, f"修改成功, 共{cur.rowcount}条")

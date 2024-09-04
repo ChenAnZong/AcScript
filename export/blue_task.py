@@ -2,8 +2,10 @@ import codecs
 import logging
 import json
 import os.path
+import traceback
+
 import aiofiles
-from quart import request, Blueprint, Response
+from quart import request, Blueprint, Response, current_app
 from quart.datastructures import FileStorage
 
 from data.man_task import ScriptTaskManager, ActionRet
@@ -52,6 +54,16 @@ async def _retry_task():
     return ret.to_json()
 
 
+# 12小时重试
+@task.route("/retry_auto", methods=["POST"])
+async def _retry_pc_task():
+    req_json = await request.get_json()
+    ret = await task_manager.retry_task_pc_error(
+        box_ids=req_json["box_ids"]  # 可以为数组, 或者字符串均可
+    )
+    return ret.to_json()
+
+
 # [待用]查询任务的具体参数, 这个暂时用不上
 @task.route("/task_params", methods=["GET"])
 async def _params_from_task():
@@ -76,7 +88,7 @@ async def _fetch_task():
 @task.route("/fetch_pc_task", methods=["GET"])
 async def _distb_task():
     try:
-        device_id = request.args.get("box_id")  # 在手机上脚本通过 shell("cat /data/local/tmp/.id") 进行读取
+        device_id = request.args.get("box_id")
         r = await task_manager.fetch_pc_task(device_id)
         return json.dumps(r, cls=DbTypeEncoder)
     except Exception as e:
@@ -93,7 +105,8 @@ async def _query_task():
         per_page=req_json["per_page"],
         page_index=req_json["page_index"],
         task_status_code=req_json.get("task_status_code"),  # 如果提交了此参数则指定
-        device_id=req_json.get("device_id")  # 如果提交了此参数则指定
+        device_id=req_json.get("device_id"),  # 如果提交了此参数则指定
+        params=req_json.get("param", {})   # 如果提交了此参数则指定
     )
     return json.dumps({
         "total": ct,
@@ -115,21 +128,25 @@ async def _update_status():
 
 @task.route("/report_script_error", methods=["POST"])
 async def _report_error():
-    req_json = await request.form
-    files = await request.files
-    # 目录不存在则创建目录
-    if not os.path.exists("report"):
-        os.mkdir("report")
-    # 记录错误的脚本日志
-    name = f"脚本错误自动提交_{req_json['task_id']}_{req_json['task_app']}_{req_json['task_name']}"
-    log_file = os.path.join("report", name + ".log")
-    screen_file = os.path.join("report", name + ".png")
-    ui_dump_file = os.path.join("report", name + ".xml")
-    async with aiofiles.open(log_file, mode="a+") as fw:
-        await fw.write(req_json['log'])
-    s: FileStorage = files.get("screen")
-    await s.save(destination=screen_file)
-    x: FileStorage = files.get("ui_dump")
-    await x.save(destination=ui_dump_file)
-    return name
+    try:
+        req_json = await request.form
+        files = await request.files
+        # 目录不存在则创建目录
+        if not os.path.exists("report"):
+            os.mkdir("report")
+        # 记录错误的脚本日志
+        name = f"脚本错误自动提交_{req_json['task_id']}_{req_json['task_app']}_{req_json['task_name']}"
+        log_file = os.path.join("report", name + ".log")
+        screen_file = os.path.join("report", name + ".png")
+        ui_dump_file = os.path.join("report", name + ".xml")
+        async with aiofiles.open(log_file, mode="a+") as fw:
+            await fw.write(req_json['log'])
+        s: FileStorage = files.get("screen")
+        await s.save(destination=screen_file)
+        x: FileStorage = files.get("ui_dump")
+        await x.save(destination=ui_dump_file)
+        return name
+    except:
+        current_app.logger.error(f"上报脚本错误:\n {traceback.format_exc()}")
+        return "日志上传错误"
 

@@ -14,7 +14,6 @@ class Config:
     IS_DEBUG = sys.platform == "win32"
 
 
-
 class ServerAPP:
     cfg = Config()
     cors_settings = {
@@ -29,15 +28,15 @@ class ServerAPP:
     app.register_blueprint(blueprint=cors(blueprint_task, **cors_settings))
     app.register_blueprint(blueprint=cors(blueprint_resource, **cors_settings))
     app.config["TEMPLATES_AUTO_RELOAD"] = True
+    app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024 * 64
     app = cors(app, **cors_settings)
-    MyLogger.setup(app.logger)
-    MyLogger.setup(logging.getLogger("hypercorn.access"))
-    MyLogger.setup(logging.getLogger("hypercorn"))
-    MyLogger.setup(logging.getLogger("hypercorn.error"))
 
     @classmethod
     def start(cls):
         if cls.cfg.IS_DEBUG:
+            MyLogger.setup(cls.app.logger)
+            MyLogger.setup(logging.getLogger("hypercorn.access"))
+            MyLogger.setup(logging.getLogger("hypercorn.error"))
             loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict]
             print("启动程序#日志打印：", loggers)
             cls.app.run(host="0.0.0.0", port=5031, debug=True)

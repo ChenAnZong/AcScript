@@ -109,7 +109,7 @@ async def _update_project():
         if not os.path.exists(rn):
             os.rename(local_file, rn)
     async with aiofiles.open(os.path.join("project_zip", f"{project_id}_update_history.txt"), mode="a+") as fw:
-        await fw.write(f"{util.format_time()}\t{update_version}\t{update_note}")
+        await fw.write(f"{util.format_time()}\t{update_version}\t{update_note}\n")
     ret = await project_man.update_project(project_id, md5, md5 is not None, update_version, git_url, update_note)
     return ret.to_json()
 

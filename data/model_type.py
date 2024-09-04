@@ -39,3 +39,6 @@ class TaskStatus(Enum):
     DEVICE_FINISH = 7
     #  脚本执行异常
     DEVICE_EXE_ERROR = 9
+
+if __name__ == "__main__":
+    print(TaskStatus.CREATED.value)
